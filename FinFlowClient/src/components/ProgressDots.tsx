@@ -1,22 +1,28 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 
 type Props = {
   total: number;
   current: number;
+  onDotPress?: (index: number) => void;
 };
 
-export default function ProgressDots({ total, current }: Props) {
+export default function ProgressDots({ total, current, onDotPress }: Props) {
   return (
     <View style={styles.dots}>
       {Array.from({ length: total }).map((_, i) => (
-        <View
+        <TouchableOpacity
           key={i}
-          style={[
-            styles.dot,
-            i === current ? styles.dotActive : styles.dotInactive,
-          ]}
-        />
+          onPress={() => onDotPress && onDotPress(i)}
+          activeOpacity={0.6}
+        >
+          <View
+            style={[
+              styles.dot,
+              i === current ? styles.dotActive : styles.dotInactive,
+            ]}
+          />
+        </TouchableOpacity>
       ))}
     </View>
   );

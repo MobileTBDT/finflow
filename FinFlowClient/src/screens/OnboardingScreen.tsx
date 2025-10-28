@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  Animated,
 } from "react-native";
 import ProgressDots from "../components/ProgressDots";
 
@@ -20,7 +21,7 @@ const slides = [
     title: "Montrack",
     description:
       "“A budget is telling your money where to go instead of wondering where it went.”",
-    backgroundColor: "#edf0f5",
+    backgroundColor: "#F2F7FF",
     showButton: true,
     buttonText: "Next",
   },
@@ -30,7 +31,7 @@ const slides = [
     title: "Your finances, at your fingertips",
     description:
       "Montrack provides easy access to all your financial information at your fingertips. Start managing your finances more efficiently.",
-    backgroundColor: "#fff",
+    backgroundColor: "#F2F7FF",
     showButton: true,
     buttonText: "Next",
   },
@@ -40,7 +41,7 @@ const slides = [
     title: "Welcome in Montrack!",
     description:
       "With Montrack, you can easily and quickly track all your expenses. Enjoy full control over your finances.",
-    backgroundColor: "#fff",
+    backgroundColor: "#F2F7FF",
     showButton: true,
     buttonText: "Let’s Get Started",
   },
@@ -48,10 +49,21 @@ const slides = [
 
 export default function OnboardingScreen() {
   const [index, setIndex] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 350,
+      useNativeDriver: true,
+    }).start();
+  }, [index]);
 
   const handleNext = () => {
     if (index < slides.length - 1) setIndex(index + 1);
-    // chuyển sang màn hình chính nếu hết onboarding
+    //chuyển sang màn hình chính
+    //todo
   };
 
   const handleSkip = () => {
@@ -81,8 +93,12 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
         )}
       </View>
-      <ProgressDots total={slides.length} current={index} />
-      <View style={styles.centerBox}>
+      <ProgressDots
+        total={slides.length}
+        current={index}
+        onDotPress={setIndex}
+      />
+      <Animated.View style={[styles.centerBox, { opacity: fadeAnim }]}>
         {slide.image && (
           <Image
             source={slide.image}
@@ -94,7 +110,7 @@ export default function OnboardingScreen() {
           <Text style={styles.title}>{slide.title}</Text>
           <Text style={styles.desc}>{slide.description}</Text>
         </View>
-      </View>
+      </Animated.View>
       {slide.showButton && (
         <View style={styles.buttonBox}>
           <TouchableOpacity style={styles.button} onPress={handleNext}>
