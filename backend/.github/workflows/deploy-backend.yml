@@ -1,0 +1,63 @@
+name: Deploy FinFlow Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      # Build app trong thư mục backend
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: ./backend
+        run: npm run build
+
+      # Deploy lên cloud server bằng SSH theo hướng dẫn của thầy
+      - name: Deploy to Cloud Server via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.CLOUDFLY_TOKEN.SSH_HOST }}
+          username: ${{ secrets.CLOUDFLY_TOKEN.SSH_USERNAME }}
+          password: ${{ secrets.CLOUDFLY_TOKEN.SSH_PASSWORD }}
+          port: ${{ secrets.CLOUDFLY_TOKEN.SSH_PORT }}
+          script: |
+            echo ">>> Step 1: Pull latest code"
+            cd /var/www/finflow-backend || mkdir -p /var/www/finflow-backend && cd /var/www/finflow-backend
+            git pull origin main || git clone https://github.com/MobileTBDT/finflow.git .
+
+            echo ">>> Step 2: Move to backend folder"
+            cd backend
+
+            echo ">>> Step 3: Install dependencies"
+            npm ci
+
+            echo ">>> Step 4: Build backend"
+            npm run build
+
+            echo ">>> Step 5: Replace .env file"
+            echo "${{ secrets.CLOUDFLY_TOKEN.ENV_FILE }}" > .env
+
+            echo ">>> Step 6: Restart app with PM2"
+            pm2 restart finflow-backend || pm2 start dist/main.js --name finflow-backend
+
+            echo ">>> Deployment completed!"
