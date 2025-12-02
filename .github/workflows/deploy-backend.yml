@@ -2,44 +2,37 @@ name: Deploy FinFlow Backend
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - "backend/**"
-      - ".github/workflows/deploy-backend.yml"
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
-
-      - name: Install dependencies
-        working-directory: ./backend
-        run: npm ci
+          node-version: 18
 
       - name: Build backend
-        working-directory: ./backend
-        run: npm run build
-
-      # NEW: Parse multiline secret into environment variables
-      - name: Load server secrets
-        id: secrets
+        working-directory: backend
         run: |
-          echo "${{ secrets.CLOUDFLY_TOKEN }}" > secret.txt
-          while IFS='=' read -r key value; do
-            echo "$key=$value" >> $GITHUB_ENV
-          done < secret.txt
+          npm ci
+          npm run build
 
+      - name: Load server secrets
+        id: load
+        run: |
+          echo "${{ secrets.CLOUDFLY_TOKEN }}" > secrets.txt
+          echo "SSH_HOST=$(grep SSH_HOST secrets.txt | cut -d '=' -f2)" >> $GITHUB_ENV
+          echo "SSH_PORT=$(grep SSH_PORT secrets.txt | cut -d '=' -f2)" >> $GITHUB_ENV
+          echo "SSH_USERNAME=$(grep SSH_USERNAME secrets.txt | cut -d '=' -f2)" >> $GITHUB_ENV
+          echo "SSH_PASSWORD=$(grep SSH_PASSWORD secrets.txt | cut -d '=' -f2)" >> $GITHUB_ENV
+          echo "ENV_FILE=$(grep ENV_FILE secrets.txt | cut -d '=' -f2-)" >> $GITHUB_ENV
 
-      - name: Deploy to Cloud Server via SSH
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ env.SSH_HOST }}
@@ -47,24 +40,10 @@ jobs:
           password: ${{ env.SSH_PASSWORD }}
           port: ${{ env.SSH_PORT }}
           script: |
-            echo ">>> Pull latest code"
             cd /var/www/finflow-backend || mkdir -p /var/www/finflow-backend && cd /var/www/finflow-backend
-
-            git pull origin main || git clone https://github.com/MobileTBDT/finflow.git .
-
-            echo ">>> Move to backend folder"
+            git pull || git clone https://github.com/MobileTBDT/finflow.git .
             cd backend
-
-            echo ">>> Install dependencies"
             npm ci
-
-            echo ">>> Build backend"
             npm run build
-
-            echo ">>> Write .env"
-            printf "%s\n" $ENV_FILE > .env
-
-            echo ">>> Restart with PM2"
+            echo "${{ env.ENV_FILE }}" > .env
             pm2 restart finflow-backend || pm2 start dist/main.js --name finflow-backend
-
-            echo ">>> Deploy done!"
