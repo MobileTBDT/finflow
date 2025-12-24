@@ -220,7 +220,9 @@ export default function LoginScreen() {
             <TouchableOpacity
               activeOpacity={0.92}
               style={styles.primaryBtn}
-              onPress={() => {}}
+              onPress={() => {
+                navigation.navigate("AddTransaction");
+              }}
             >
               <Text style={styles.primaryText}>Log In</Text>
             </TouchableOpacity>
