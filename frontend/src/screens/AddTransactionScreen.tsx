@@ -483,7 +483,13 @@ export default function AddTransactionScreen() {
         <View style={styles.dynamicArea}>
           {panel === "note" ? (
             <View style={styles.noteBox}>
-              <Text style={styles.noteTitle}>✎ Add Your Note Here...</Text>
+              <Text style={styles.noteTitle}>
+                <Image
+                  source={require("../../assets/note.png")}
+                  style={{ width: 16, height: 16, marginRight: 6 }}
+                />{" "}
+                Add Your Note Here...
+              </Text>
               <TextInput
                 value={note}
                 onChangeText={setNote}
@@ -726,15 +732,20 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  catRow: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  catRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    justifyContent: "center",
+  },
   catItem: {
     width: 76,
     alignItems: "center",
   },
   catItemActive: {},
   catIconWrap: {
-    width: 56,
-    height: 56,
+    width: 64,
+    height: 64,
     borderRadius: 14,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -756,8 +767,8 @@ const styles = StyleSheet.create({
 
   catMore: { width: 76, alignItems: "center" },
   catMoreIconWrap: {
-    width: 56,
-    height: 56,
+    width: 64,
+    height: 64,
     borderRadius: 14,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
