@@ -172,7 +172,13 @@ function Segmented({
   );
 }
 
-function Keypad({ onDigit }: { onDigit: (d: string) => void }) {
+function Keypad({
+  onDigit,
+  onDelete,
+}: {
+  onDigit: (d: string) => void;
+  onDelete: () => void; // <--- Thêm dòng này
+}) {
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
   const sub: Record<string, string> = {
     "2": "ABC",
@@ -196,11 +202,23 @@ function Keypad({ onDigit }: { onDigit: (d: string) => void }) {
         ))}
 
         <View style={styles.keyGhost} />
+
         <Pressable onPress={() => onDigit("0")} style={styles.key}>
           <Text style={styles.keyText}>0</Text>
           <Text style={styles.keySub} />
         </Pressable>
-        <View style={styles.keyGhost} />
+
+        <Pressable
+          onPress={onDelete}
+          style={[
+            styles.key,
+            { backgroundColor: "transparent", elevation: 0, shadowOpacity: 0 },
+          ]}
+        >
+          <Text style={{ fontSize: 24, fontWeight: "900", color: "#111827" }}>
+            ⌫
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -275,6 +293,13 @@ export default function AddTransactionScreen() {
       const base = prev === "0" ? "" : prev;
       const next = (base + d).replace(/^0+(?=\d)/, "");
       return (next.length ? next : "0").slice(0, 12);
+    });
+  };
+
+  const onDelete = () => {
+    setAmountDigits((prev) => {
+      if (prev.length <= 1) return "0";
+      return prev.slice(0, -1);
     });
   };
 
@@ -396,61 +421,63 @@ export default function AddTransactionScreen() {
             </Text>
           </Pressable>
         </View>
+        {/* Repeat Frequency */}
+        {/* chỉ show khi ở income */}
+        {txType === "income" ? (
+          <View style={styles.repeatWrap}>
+            <Pressable
+              onPress={() => setRepeatOpen((v) => !v)}
+              style={styles.repeatRow}
+            >
+              <View style={styles.repeatLeftRow}>
+                <Image
+                  source={require("../../assets/repeat.png")}
+                  style={styles.inlineIcon}
+                />
+                <Text style={styles.repeatLeftText}>Repeat Frequency:</Text>
+              </View>
 
-        {/* Repeat Frequency row */}
-        <View style={styles.repeatWrap}>
-          <Pressable
-            onPress={() => setRepeatOpen((v) => !v)}
-            style={styles.repeatRow}
-          >
-            <View style={styles.repeatLeftRow}>
-              <Image
-                source={require("../../assets/repeat.png")}
-                style={styles.inlineIcon}
-              />
-              <Text style={styles.repeatLeftText}>Repeat Frequency:</Text>
-            </View>
+              <Text style={styles.repeatRight}>{repeat}</Text>
+            </Pressable>
 
-            <Text style={styles.repeatRight}>{repeat}</Text>
-          </Pressable>
-
-          {repeatOpen ? (
-            <View style={styles.repeatDropdown}>
-              {(
-                [
-                  "None",
-                  "Every Day",
-                  "Every Week",
-                  "Every Month",
-                ] as RepeatOption[]
-              ).map((opt) => {
-                const checked = repeat === opt;
-                return (
-                  <Pressable
-                    key={opt}
-                    onPress={() => {
-                      setRepeat(opt);
-                      setRepeatOpen(false);
-                    }}
-                    style={styles.repeatItem}
-                  >
-                    <Text style={styles.repeatItemText}>
-                      {opt === "None" ? "Do Not Repeat" : opt}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.repeatCheck,
-                        checked && styles.repeatCheckOn,
-                      ]}
+            {repeatOpen ? (
+              <View style={styles.repeatDropdown}>
+                {(
+                  [
+                    "None",
+                    "Every Day",
+                    "Every Week",
+                    "Every Month",
+                  ] as RepeatOption[]
+                ).map((opt) => {
+                  const checked = repeat === opt;
+                  return (
+                    <Pressable
+                      key={opt}
+                      onPress={() => {
+                        setRepeat(opt);
+                        setRepeatOpen(false);
+                      }}
+                      style={styles.repeatItem}
                     >
-                      {checked ? "✓" : ""}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-        </View>
+                      <Text style={styles.repeatItemText}>
+                        {opt === "None" ? "Do Not Repeat" : opt}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.repeatCheck,
+                          checked && styles.repeatCheckOn,
+                        ]}
+                      >
+                        {checked ? "✓" : ""}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {/* Dynamic area */}
         <View style={styles.dynamicArea}>
@@ -556,7 +583,7 @@ export default function AddTransactionScreen() {
               ))}
             </View>
           ) : (
-            <Keypad onDigit={onDigit} />
+            <Keypad onDigit={onDigit} onDelete={onDelete} />
           )}
         </View>
       </View>
@@ -684,7 +711,7 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: "#111827" },
 
   amount: {
-    marginTop: 44,
+    marginTop: 30,
     fontSize: 50,
     fontWeight: "900",
     color: "#0B3B35",
