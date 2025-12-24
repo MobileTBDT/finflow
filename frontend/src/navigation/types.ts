@@ -2,10 +2,13 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   SignUp: undefined;
-  //app sau khi đăng nhập
+
   MainTabs: undefined;
-  //modal add transaction
-  AddTransaction: undefined;
+  AddTransaction: undefined; //+
+
+  // màn hình detail của Budget Category
+  BudgetCategoryDetail: { categoryId: string };
+  BudgetCategoryForm: { categoryId: string };
 };
 
 export type MainTabParamList = {

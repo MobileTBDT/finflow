@@ -9,6 +9,9 @@ import AddTransactionScreen from "../screens/AddTransactionScreen";
 import MainTabsNavigator from "./MainTabsNavigator";
 import type { RootStackParamList } from "./types";
 
+import BudgetCategoryDetailScreen from "../screens/BudgetCategoryDetailScreen";
+import BudgetCategoryFormScreen from "../screens/BudgetCategoryFormScreen";
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
@@ -31,6 +34,7 @@ export default function AppNavigator() {
           component={MainTabsNavigator}
           options={{ animation: "fade" }}
         />
+
         <Stack.Screen
           name="AddTransaction"
           component={AddTransactionScreen}
@@ -38,6 +42,15 @@ export default function AppNavigator() {
             presentation: "modal",
             animation: "slide_from_bottom",
           }}
+        />
+
+        <Stack.Screen
+          name="BudgetCategoryDetail"
+          component={BudgetCategoryDetailScreen}
+        />
+        <Stack.Screen
+          name="BudgetCategoryForm"
+          component={BudgetCategoryFormScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>
