@@ -1,197 +1,228 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Dimensions,
-  Platform,
   Animated,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
-import ProgressDots from "../components/ProgressDots";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../navigation/types";
 
-const { width, height } = Dimensions.get("window");
-const MAX_WIDTH = 400;
+type Slide = {
+  key: string;
+  title: string;
+  description: string;
+  image?: any;
+  buttonText?: string;
+};
 
-const slides = [
-  {
-    key: "splash",
-    logo: require("../../assets/logo.png"),
-    title: "Montrack",
-    description:
-      "“A budget is telling your money where to go instead of wondering where it went.”",
-    backgroundColor: "#F2F7FF",
-    showButton: true,
-    buttonText: "Next",
-  },
-  {
-    key: "finances",
-    image: require("../../assets/onboarding1.png"),
-    title: "Your finances, at your fingertips",
-    description:
-      "Montrack provides easy access to all your financial information at your fingertips. Start managing your finances more efficiently.",
-    backgroundColor: "#F2F7FF",
-    showButton: true,
-    buttonText: "Next",
-  },
+const slides: Slide[] = [
   {
     key: "welcome",
-    image: require("../../assets/onboarding2.png"),
-    title: "Welcome in Montrack!",
+    title: "Welcome to FINFLOW",
     description:
-      "With Montrack, you can easily and quickly track all your expenses. Enjoy full control over your finances.",
-    backgroundColor: "#F2F7FF",
-    showButton: true,
+      "“A budget is telling your money where to go\ninstead of wondering where it went.”",
+    image: require("../../assets/onboarding-new.png"),
+    // image: undefined,
     buttonText: "Let’s Get Started",
   },
 ];
 
+function SlideVisual({ source, height }: { source?: any; height: number }) {
+  if (!source) {
+    return (
+      <View style={[styles.placeholder, { height }]}>
+        <Text style={styles.placeholderText}>Placeholder image</Text>
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={source}
+      style={[styles.image, { height }]}
+      resizeMode="contain"
+    />
+  );
+}
+
 export default function OnboardingScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { height: screenH, width: screenW } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  const slide = slides[index];
+
+  const imageHeight = useMemo(() => {
+    const base = Math.round(screenH * 0.45);
+    const minH = 220;
+    const maxH = 420;
+
+    const scaled = screenW < 360 ? Math.round(base * 0.9) : base;
+
+    return Math.max(minH, Math.min(maxH, scaled));
+  }, [screenH, screenW]);
 
   useEffect(() => {
     fadeAnim.setValue(0);
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 350,
+      duration: 280,
       useNativeDriver: true,
     }).start();
-  }, [index]);
+  }, [index, fadeAnim]);
 
   const handleNext = () => {
-    if (index < slides.length - 1) setIndex(index + 1);
-    //chuyển sang màn hình chính
-    //todo
+    if (index < slides.length - 1) {
+      setIndex(index + 1);
+      return;
+    }
+    navigation.replace("Login");
   };
-
-  const handleSkip = () => {
-    setIndex(slides.length - 1);
-  };
-
-  const slide = slides[index];
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: slide.backgroundColor }]}
-    >
-      <View style={styles.header}>
-        <View style={styles.logoRow}>
-          {slide.logo && (
-            <Image
-              source={slide.logo}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          )}
-          <Text style={styles.logoText}>{slide.title}</Text>
-        </View>
-        {index < slides.length - 1 && (
-          <TouchableOpacity onPress={handleSkip}>
-            <Text style={styles.skip}>Skip</Text>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.root}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+            <View style={styles.header}>
+              <Text style={styles.title}>{slide.title}</Text>
+              <Text style={styles.quote}>{slide.description}</Text>
+            </View>
+
+            <View style={styles.visualWrap}>
+              <SlideVisual source={slide.image} height={imageHeight} />
+            </View>
+          </Animated.View>
+
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.cta}
+            onPress={handleNext}
+          >
+            <Text style={styles.ctaText}>{slide.buttonText ?? "Next"}</Text>
+            <Text style={styles.ctaArrow}>›</Text>
           </TouchableOpacity>
-        )}
+        </View>
       </View>
-      <ProgressDots
-        total={slides.length}
-        current={index}
-        onDotPress={setIndex}
-      />
-      <Animated.View style={[styles.centerBox, { opacity: fadeAnim }]}>
-        {slide.image && (
-          <Image
-            source={slide.image}
-            style={styles.image}
-            resizeMode="contain"
-          />
-        )}
-        <View style={styles.textBox}>
-          <Text style={styles.title}>{slide.title}</Text>
-          <Text style={styles.desc}>{slide.description}</Text>
-        </View>
-      </Animated.View>
-      {slide.showButton && (
-        <View style={styles.buttonBox}>
-          <TouchableOpacity style={styles.button} onPress={handleNext}>
-            <Text style={styles.buttonText}>{slide.buttonText || "Next"}</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    minHeight: height,
-    backgroundColor: "#fff",
-    justifyContent: "flex-start",
+    backgroundColor: "#FFFFFF",
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: Platform.OS === "web" ? 32 : 60,
-    marginHorizontal: 24,
+  root: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === "android" ? 12 : 8,
+  },
+  content: {
+    flex: 1,
     justifyContent: "space-between",
   },
-  logoRow: {
-    flexDirection: "row",
+  header: {
+    paddingTop: 12,
     alignItems: "center",
   },
-  logo: { width: 40, height: 40, marginRight: 8 },
-  logoText: { fontSize: 28, fontWeight: "bold", color: "#333" },
-  skip: { color: "#888", fontSize: 18 },
-  centerBox: {
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111111",
+    textAlign: "center",
+    letterSpacing: 0.2,
+  },
+  quote: {
+    marginTop: 12,
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#444444",
+    textAlign: "center",
+  },
+  visualWrap: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    width: "100%",
-    maxWidth: MAX_WIDTH,
-    alignSelf: "center",
+    alignItems: "center",
+    paddingVertical: 18,
   },
   image: {
     width: "100%",
-    maxWidth: 320,
-    height: 260,
-    alignSelf: "center",
-    marginVertical: 16,
+    maxWidth: 520,
   },
-  textBox: {
+  placeholder: {
     width: "100%",
-    paddingHorizontal: 24,
-    marginTop: 16,
-    alignItems: "flex-start",
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#222",
-    marginBottom: 12,
-  },
-  desc: {
-    fontSize: 18,
-    color: "#666",
-    lineHeight: 26,
-  },
-  buttonBox: {
-    width: "100%",
-    maxWidth: MAX_WIDTH,
-    alignSelf: "center",
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === "web" ? 32 : 24,
-  },
-  button: {
-    flexDirection: "row",
-    backgroundColor: "#2d74e4",
-    borderRadius: 16,
-    paddingVertical: 8,
+    maxWidth: 520,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E6E6E6",
+    backgroundColor: "#FAFAFA",
     alignItems: "center",
     justifyContent: "center",
-    width: "100%",
   },
-  buttonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  arrow: { color: "#fff", fontSize: 20, marginLeft: 8, fontWeight: "bold" },
+  placeholderText: {
+    color: "#9A9A9A",
+    fontSize: 14,
+  },
+  bottomSpacer: {
+    height: 96,
+  },
+  bottomBar: {
+    paddingHorizontal: 18,
+    paddingBottom: Platform.OS === "android" ? 14 : 18,
+    paddingTop: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  cta: {
+    height: 40,
+    backgroundColor: "#111111",
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  ctaText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  ctaArrow: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: -1,
+  },
 });
