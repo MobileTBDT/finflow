@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,6 +17,80 @@ type TxType = "income" | "expense";
 type Panel = "keypad" | "note" | "calendar";
 type RepeatOption = "None" | "Every Day" | "Every Week" | "Every Month";
 
+type ExpenseCategory = {
+  id: string;
+  label: string;
+  icon?: string;
+  image?: ImageSourcePropType;
+};
+
+const TOP_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  {
+    id: "food",
+    label: "Food",
+    image: require("../../assets/food.png"),
+  },
+  {
+    id: "grocery",
+    label: "Grocery",
+    image: require("../../assets/grocery.png"),
+  },
+  {
+    id: "transport",
+    label: "Transportation",
+    image: require("../../assets/transportation.png"),
+  },
+];
+
+const ALL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  ...TOP_EXPENSE_CATEGORIES,
+  {
+    id: "utilities",
+    label: "Utilities",
+    image: require("../../assets/utilities.png"),
+  },
+  {
+    id: "rent",
+    label: "Rent",
+    image: require("../../assets/rent.png"),
+  },
+  {
+    id: "personal",
+    label: "Personal",
+    image: require("../../assets/personal.png"),
+  },
+  {
+    id: "health",
+    label: "Health",
+    image: require("../../assets/health.png"),
+  },
+  {
+    id: "sport",
+    label: "Sport",
+    image: require("../../assets/sport.png"),
+  },
+  {
+    id: "gift",
+    label: "Gift",
+    image: require("../../assets/gift.png"),
+  },
+  {
+    id: "saving",
+    label: "Saving",
+    image: require("../../assets/saving.png"),
+  },
+  {
+    id: "travel",
+    label: "Travel",
+    image: require("../../assets/travel.png"),
+  },
+  {
+    id: "shopping",
+    label: "Shopping",
+    image: require("../../assets/shopping.png"),
+  },
+];
+
 function formatVnd(amountDigits: string) {
   const n = Number(amountDigits || "0");
   const formatted = n.toLocaleString("vi-VN"); // 1.250.000
@@ -27,7 +102,6 @@ function pad2(n: number) {
 }
 
 function formatDateLabel(d: Date) {
-  // "02 November, 2025"
   const day = pad2(d.getDate());
   const month = d.toLocaleString("en-US", { month: "long" });
   const year = d.getFullYear();
@@ -35,7 +109,6 @@ function formatDateLabel(d: Date) {
 }
 
 function mondayIndex(jsDay: number) {
-  // JS: Sun=0..Sat=6 -> Mon=0..Sun=6
   return (jsDay + 6) % 7;
 }
 
@@ -100,7 +173,6 @@ function Segmented({
 }
 
 function Keypad({ onDigit }: { onDigit: (d: string) => void }) {
-  // Giống design: 1..9 và 0 ở giữa, không hiện C/Del
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
   const sub: Record<string, string> = {
     "2": "ABC",
@@ -134,22 +206,55 @@ function Keypad({ onDigit }: { onDigit: (d: string) => void }) {
   );
 }
 
+function CategoryPill({
+  category,
+  selected,
+  onPress,
+}: {
+  category: ExpenseCategory;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.catItem, selected && styles.catItemActive]}
+    >
+      <View style={[styles.catIconWrap, selected && styles.catIconWrapActive]}>
+        {category.image ? (
+          <Image
+            source={category.image}
+            style={{ width: 28, height: 28 }}
+            resizeMode="contain"
+          />
+        ) : (
+          <Text style={styles.catIcon}>{category.icon}</Text>
+        )}
+      </View>
+      <Text
+        style={[styles.catLabel, selected && styles.catLabelActive]}
+        numberOfLines={1}
+      >
+        {category.label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function AddTransactionScreen() {
   const navigation = useNavigation();
 
   const [txType, setTxType] = useState<TxType>("income");
-
-  // amountDigits: chỉ lưu số, hiển thị format bên ngoài
   const [amountDigits, setAmountDigits] = useState<string>("0");
 
   const [note, setNote] = useState<string>("");
   const [repeat, setRepeat] = useState<RepeatOption>("None");
   const [repeatOpen, setRepeatOpen] = useState(false);
 
-  // Keypad luôn hiện, chỉ ẩn khi note/calendar
+  // keypad luôn hiện; chỉ ẩn khi note/calendar
   const [panel, setPanel] = useState<Panel>("keypad");
 
-  const [cursorMonth, setCursorMonth] = useState(() => ({ y: 2025, m: 10 })); // Nov 2025 (0-based)
+  const [cursorMonth, setCursorMonth] = useState(() => ({ y: 2025, m: 10 }));
   const [selectedDate, setSelectedDate] = useState<Date>(
     () => new Date(2025, 10, 2)
   );
@@ -158,6 +263,12 @@ export default function AddTransactionScreen() {
     () => buildCalendarMatrix(cursorMonth.y, cursorMonth.m),
     [cursorMonth]
   );
+
+  // Expense categories
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
+    TOP_EXPENSE_CATEGORIES[0]?.id ?? "food"
+  );
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
 
   const onDigit = (d: string) => {
     setAmountDigits((prev) => {
@@ -169,19 +280,34 @@ export default function AddTransactionScreen() {
 
   const toggleNote = () => {
     setRepeatOpen(false);
+    setCategoryModalOpen(false);
     setPanel((p) => (p === "note" ? "keypad" : "note"));
   };
 
   const toggleCalendar = () => {
     setRepeatOpen(false);
+    setCategoryModalOpen(false);
     setPanel((p) => (p === "calendar" ? "keypad" : "calendar"));
   };
 
   const onPressSave = () => {
     // TODO: tích hợp API
-    // payload: { type: txType, amount: Number(amountDigits), date: selectedDate, note, repeat }
+    // payload: { type: txType, amount: Number(amountDigits), date: selectedDate, note, repeat, categoryId: selectedCategoryId }
     navigation.goBack();
   };
+
+  const onChangeType = (v: TxType) => {
+    setTxType(v);
+    // giữ đúng cơ chế: keypad là mặc định khi đổi tab
+    setPanel("keypad");
+    setRepeatOpen(false);
+    setCategoryModalOpen(false);
+  };
+
+  const selectedCategory = useMemo(
+    () => ALL_EXPENSE_CATEGORIES.find((c) => c.id === selectedCategoryId),
+    [selectedCategoryId]
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -198,9 +324,51 @@ export default function AddTransactionScreen() {
           </Pressable>
         </View>
 
-        <Segmented value={txType} onChange={setTxType} />
+        <Segmented value={txType} onChange={onChangeType} />
 
         <Text style={styles.amount}>{formatVnd(amountDigits)}</Text>
+
+        {/* Expense Category (chỉ hiện khi Expense) */}
+        {txType === "expense" ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Expense Category</Text>
+
+            <View style={styles.catRow}>
+              {TOP_EXPENSE_CATEGORIES.map((c) => (
+                <CategoryPill
+                  key={c.id}
+                  category={c}
+                  selected={c.id === selectedCategoryId}
+                  onPress={() => setSelectedCategoryId(c.id)}
+                />
+              ))}
+
+              <Pressable
+                onPress={() => {
+                  setRepeatOpen(false);
+                  setPanel("keypad");
+                  setCategoryModalOpen(true);
+                }}
+                style={styles.catMore}
+              >
+                <View style={styles.catMoreIconWrap}>
+                  <Text style={styles.catMoreIcon}>＋</Text>
+                </View>
+                <Text style={styles.catMoreLabel}>More</Text>
+              </Pressable>
+            </View>
+
+            {/* hiển thị category đã chọn (nhẹ) */}
+            {selectedCategory ? (
+              <Text style={styles.selectedHint}>
+                Selected:{" "}
+                <Text style={styles.selectedHintStrong}>
+                  {selectedCategory.label}
+                </Text>
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
 
         {/* Note + Date cards */}
         <View style={styles.row}>
@@ -208,10 +376,9 @@ export default function AddTransactionScreen() {
             onPress={toggleNote}
             style={[styles.card, styles.cardHalf]}
           >
-            {/* <Text style={styles.cardIcon}>✎</Text> */}
             <Image
               source={require("../../assets/note.png")}
-              style={{ width: 16, height: 16, marginRight: 6 }}
+              style={styles.inlineIcon}
             />
             <Text style={styles.cardText}>Note...</Text>
           </Pressable>
@@ -220,10 +387,9 @@ export default function AddTransactionScreen() {
             onPress={toggleCalendar}
             style={[styles.card, styles.cardHalf]}
           >
-            {/* <Text style={styles.cardIcon}>📅</Text> */}
             <Image
               source={require("../../assets/calendar.png")}
-              style={{ width: 16, height: 16, marginRight: 6 }}
+              style={styles.inlineIcon}
             />
             <Text style={styles.cardText} numberOfLines={2}>
               {formatDateLabel(selectedDate)}
@@ -237,18 +403,17 @@ export default function AddTransactionScreen() {
             onPress={() => setRepeatOpen((v) => !v)}
             style={styles.repeatRow}
           >
-            <Text style={styles.repeatLeft}>
-              {/* <Text style={styles.repeatIcon}>⟲ </Text> */}
+            <View style={styles.repeatLeftRow}>
               <Image
                 source={require("../../assets/repeat.png")}
-                style={{ width: 16, height: 16, marginRight: 6 }}
+                style={styles.inlineIcon}
               />
-              Repeat Frequency:
-            </Text>
+              <Text style={styles.repeatLeftText}>Repeat Frequency:</Text>
+            </View>
+
             <Text style={styles.repeatRight}>{repeat}</Text>
           </Pressable>
 
-          {/* Dropdown: nằm dưới row, phía trên keypad */}
           {repeatOpen ? (
             <View style={styles.repeatDropdown}>
               {(
@@ -287,7 +452,7 @@ export default function AddTransactionScreen() {
           ) : null}
         </View>
 
-        {/* Dynamic area: calendar/note will replace keypad space */}
+        {/* Dynamic area */}
         <View style={styles.dynamicArea}>
           {panel === "note" ? (
             <View style={styles.noteBox}>
@@ -396,11 +561,66 @@ export default function AddTransactionScreen() {
         </View>
       </View>
 
+      {/* Save */}
       <View style={styles.bottom}>
         <Pressable onPress={onPressSave} style={styles.saveBtn}>
           <Text style={styles.saveText}>Save</Text>
         </Pressable>
       </View>
+
+      {/* Modal: Choose Expense Category */}
+      <Modal
+        visible={categoryModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCategoryModalOpen(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setCategoryModalOpen(false)}
+        >
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose Expense Category</Text>
+              <Pressable
+                onPress={() => setCategoryModalOpen(false)}
+                style={styles.modalClose}
+                hitSlop={10}
+              >
+                <Text style={styles.modalCloseText}>×</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.modalGrid}>
+              {ALL_EXPENSE_CATEGORIES.map((c) => (
+                <Pressable
+                  key={c.id}
+                  onPress={() => {
+                    setSelectedCategoryId(c.id);
+                    setCategoryModalOpen(false);
+                  }}
+                  style={styles.modalItem}
+                >
+                  <View style={styles.modalIconWrap}>
+                    {c.image ? (
+                      <Image
+                        source={c.image}
+                        style={{ width: 40, height: 40 }}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Text style={styles.modalIcon}>{c.icon}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.modalLabel} numberOfLines={1}>
+                    {c.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -423,7 +643,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 18,
     paddingTop: 8,
-    paddingBottom: 96, // chừa chỗ cho Save pill
+    paddingBottom: 96,
   },
 
   header: {
@@ -431,11 +651,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 10,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#0B3B35",
-  },
+  headerTitle: { fontSize: 18, fontWeight: "900", color: "#0B3B35" },
   closeBtn: {
     position: "absolute",
     right: 0,
@@ -468,14 +684,78 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: "#111827" },
 
   amount: {
-    marginTop: 60,
+    marginTop: 44,
     fontSize: 50,
     fontWeight: "900",
     color: "#0B3B35",
     textAlign: "center",
   },
 
-  row: { marginTop: 60, flexDirection: "row", gap: 14 },
+  section: { marginTop: 22 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#111827",
+    marginBottom: 10,
+  },
+
+  catRow: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  catItem: {
+    width: 76,
+    alignItems: "center",
+  },
+  catItemActive: {},
+  catIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    ...CARD_SHADOW,
+  },
+  catIconWrapActive: { borderColor: "#111827" },
+  catIcon: { fontSize: 26 },
+  catLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  catLabelActive: { color: "#111827" },
+
+  catMore: { width: 76, alignItems: "center" },
+  catMoreIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    ...CARD_SHADOW,
+  },
+  catMoreIcon: { fontSize: 28, fontWeight: "900", color: "#111827" },
+  catMoreLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#6B7280",
+  },
+
+  selectedHint: {
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  selectedHintStrong: { color: "#111827", fontWeight: "900" },
+
+  row: { marginTop: 18, flexDirection: "row", gap: 14 },
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -483,19 +763,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
     ...CARD_SHADOW,
   },
   cardHalf: { flex: 1 },
-  cardIcon: { fontSize: 16 },
   cardText: {
     fontSize: 14,
     fontWeight: "900",
     color: "#111827",
     flexShrink: 1,
   },
+  inlineIcon: { width: 16, height: 16, marginRight: 8 },
 
-  repeatWrap: { marginTop: 30 },
+  repeatWrap: { marginTop: 16 },
   repeatRow: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -506,21 +785,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     ...CARD_SHADOW,
   },
-  repeatLeft: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#111827",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  repeatIcon: { fontWeight: "900" },
-  repeatRight: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#111827",
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  repeatLeftRow: { flexDirection: "row", alignItems: "center" },
+  repeatLeftText: { fontSize: 14, fontWeight: "900", color: "#111827" },
+  repeatRight: { fontSize: 14, fontWeight: "900", color: "#111827" },
 
   repeatDropdown: {
     marginTop: 10,
@@ -547,13 +814,8 @@ const styles = StyleSheet.create({
   },
   repeatCheckOn: { color: "#10B981" },
 
-  dynamicArea: {
-    marginTop: 16,
-    flex: 1,
-    justifyContent: "flex-start",
-  },
+  dynamicArea: { marginTop: 16, flex: 1, justifyContent: "flex-start" },
 
-  // Note panel
   noteBox: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -571,7 +833,6 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
 
-  // Calendar panel
   calendar: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -633,15 +894,8 @@ const styles = StyleSheet.create({
   dayTextDisabled: { color: "#D1D5DB" },
   dayTextSelected: { color: "#FFFFFF" },
 
-  // Keypad
-  keypad: {
-    paddingTop: 8,
-  },
-  keypadGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
+  keypad: { paddingTop: 8 },
+  keypadGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   key: {
     width: "30.5%",
     height: 72,
@@ -651,10 +905,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...CARD_SHADOW,
   },
-  keyGhost: {
-    width: "31.5%",
-    height: 72,
-  },
+  keyGhost: { width: "31.5%", height: 72 },
   keyText: { fontSize: 24, fontWeight: "900", color: "#111827" },
   keySub: { marginTop: 2, fontSize: 10, fontWeight: "900", color: "#6B7280" },
 
@@ -682,4 +933,61 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   saveText: { color: "#FFFFFF", fontSize: 18, fontWeight: "900" },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    padding: 18,
+    justifyContent: "flex-end",
+  },
+  modalCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    ...CARD_SHADOW,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  modalTitle: { fontSize: 16, fontWeight: "900", color: "#111827" },
+  modalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCloseText: { fontSize: 26, lineHeight: 26, color: "#111827" },
+
+  modalGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  modalItem: {
+    width: "21.5%",
+    alignItems: "center",
+  },
+  modalIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalIcon: { fontSize: 24 },
+  modalLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#6B7280",
+    textAlign: "center",
+  },
 });
