@@ -72,7 +72,14 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={styles.h1}>Hi, Welcome Back</Text>
           <Pressable style={styles.bell}>
-            <Text style={styles.bellText}>🔔</Text>
+            {/* <Text style={styles.bellText}>🔔</Text> */}
+            <Image
+              source={require("../../assets/noti.png")}
+              style={{
+                width: 20,
+                height: 20,
+              }}
+            />
           </Pressable>
         </View>
 

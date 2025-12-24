@@ -17,14 +17,20 @@ export default function AppNavigator() {
       <Stack.Navigator
         id="root"
         initialRouteName="Onboarding"
-        screenOptions={{ headerShown: false }}
+        screenOptions={{
+          headerShown: false,
+          animation: "slide_from_right",
+          animationDuration: 200,
+        }}
       >
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
-
-        <Stack.Screen name="MainTabs" component={MainTabsNavigator} />
-
+        <Stack.Screen
+          name="MainTabs"
+          component={MainTabsNavigator}
+          options={{ animation: "fade" }}
+        />
         <Stack.Screen
           name="AddTransaction"
           component={AddTransactionScreen}
