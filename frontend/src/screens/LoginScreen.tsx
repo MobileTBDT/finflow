@@ -221,7 +221,7 @@ export default function LoginScreen() {
               activeOpacity={0.92}
               style={styles.primaryBtn}
               onPress={() => {
-                navigation.navigate("AddTransaction");
+                navigation.navigate("MainTabs");
               }}
             >
               <Text style={styles.primaryText}>Log In</Text>
