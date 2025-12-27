@@ -177,7 +177,7 @@ function Keypad({
   onDelete,
 }: {
   onDigit: (d: string) => void;
-  onDelete: () => void; // <--- Thêm dòng này
+  onDelete: () => void;
 }) {
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
   const sub: Record<string, string> = {
@@ -383,7 +383,7 @@ export default function AddTransactionScreen() {
               </Pressable>
             </View>
 
-            {/* hiển thị category đã chọn (nhẹ) */}
+            {/* hiển thị category đã chọn */}
             {selectedCategory ? (
               <Text style={styles.selectedHint}>
                 Selected:{" "}

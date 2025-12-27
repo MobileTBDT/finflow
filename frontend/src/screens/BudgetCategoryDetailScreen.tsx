@@ -75,7 +75,6 @@ export default function BudgetCategoryDetailScreen() {
   const meta = getBudgetCategory(route.params.categoryId);
   const title = meta?.label ?? "Category";
 
-  // mock header values giống ảnh
   const [totalIncome] = useState<number>(7783);
   const [totalExpense] = useState<number>(1187.4);
   const [budget] = useState<number>(20000);
