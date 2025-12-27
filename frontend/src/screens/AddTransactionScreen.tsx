@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
+
 type TxType = "income" | "expense";
 type Panel = "keypad" | "note" | "calendar";
 type RepeatOption = "None" | "Every Day" | "Every Week" | "Every Month";
