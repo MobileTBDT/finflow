@@ -177,10 +177,15 @@ export default function BudgetCategoryFormScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#FFFFFF" },
-  content: { paddingHorizontal: 18, paddingBottom: 22 },
+  content: { 
+    //paddingHorizontal: 18, paddingBottom: 22 
+    flexGrow: 1,
+  },
 
   header: {
     marginTop: 6,
+    marginLeft: 30,
+    marginRight: 30,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -201,8 +206,10 @@ const styles = StyleSheet.create({
   formCard: {
     marginTop: 16,
     backgroundColor: "#EEF2F7",
-    borderRadius: 26,
-    padding: 16,
+    borderRadius: 60,
+    padding: 50,
+    paddingTop: 30,
+    flex: 1,
   },
 
   label: { fontSize: 14, fontWeight: "900", color: "#111827", marginBottom: 8 },

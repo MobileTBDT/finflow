@@ -171,29 +171,37 @@ export default function BudgetCategoryDetailScreen() {
         {/* Totals */}
         <View style={styles.totalsCard}>
           <View style={styles.totalBox}>
-            <View style={styles.totalRow}>
-              <View style={styles.totalIcon}>
-                <Text style={styles.totalIconText}>⬇</Text>
+            <View style={styles.totalItemRow}>
+              <Image 
+                source={require("../../assets/total_income.png")} 
+                style={styles.totalImg} 
+                resizeMode="contain" 
+              />
+              <View style={styles.totalTextGroup}>
+                <Text style={styles.totalTitle}>Total Income</Text>
+                <Text style={[styles.totalValue, { color: "#16A34A" }]}>
+                  ${money(totalIncome)}
+                </Text>
               </View>
-              <Text style={styles.totalTitle}>Total Income</Text>
             </View>
-            <Text style={[styles.totalValue, { color: "#16A34A" }]}>
-              ${money(totalIncome)}
-            </Text>
           </View>
 
           <View style={styles.totalsDivider} />
 
           <View style={styles.totalBox}>
-            <View style={styles.totalRow}>
-              <View style={styles.totalIcon}>
-                <Text style={styles.totalIconText}>⬆</Text>
+            <View style={styles.totalItemRow}>
+              <Image 
+                source={require("../../assets/total_expense.png")} 
+                style={styles.totalImg} 
+                resizeMode="contain" 
+              />
+              <View style={styles.totalTextGroup}>
+                <Text style={styles.totalTitle}>Total Expense</Text>
+                <Text style={[styles.totalValue, { color: "#EF4444" }]}>
+                  ${money(totalExpense)}
+                </Text>
               </View>
-              <Text style={styles.totalTitle}>Total Expense</Text>
             </View>
-            <Text style={[styles.totalValue, { color: "#EF4444" }]}>
-              ${money(totalExpense)}
-            </Text>
           </View>
         </View>
 
@@ -201,19 +209,19 @@ export default function BudgetCategoryDetailScreen() {
         <View style={styles.progressCard}>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${percent}%` }]} />
+            
             <View style={styles.progressLeftPill}>
               <Text style={styles.progressLeftText}>{percent}%</Text>
             </View>
-            <Text style={styles.progressRightText}>${money(budget)}</Text>
+
+            <Text style={styles.progressRightInside}>${money(budget)}</Text>
           </View>
 
           <View style={styles.goodRow}>
             <View style={styles.checkBox}>
-              <Text style={styles.checkText}>✓</Text>
+                <Text style={styles.checkText}>✓</Text>
             </View>
-            <Text style={styles.goodText}>
-              {percent}% Of Your Expenses, Looks Good.
-            </Text>
+            <Text style={styles.goodText}>{percent}% Of Your Expenses, Looks Good.</Text>
           </View>
         </View>
 
@@ -257,11 +265,16 @@ export default function BudgetCategoryDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F3F4F6" },
-  content: { paddingHorizontal: 18, paddingBottom: 22 },
+  safe: { flex: 1, backgroundColor: "#FFFFFF" },
+  content: { 
+    //paddingHorizontal: 18, paddingBottom: 22 
+    flexGrow: 1,
+  },
 
   header: {
     marginTop: 6,
+    marginLeft: 30,
+    marginRight: 30,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -279,13 +292,13 @@ const styles = StyleSheet.create({
 
   totalsCard: {
     marginTop: 14,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    //backgroundColor: "#FFFFFF",
+    //borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    ...CARD_SHADOW,
+    //...CARD_SHADOW,
   },
   totalsDivider: { width: 1, height: 44, backgroundColor: "#E5E7EB" },
   totalBox: { flex: 1, alignItems: "center" },
@@ -301,13 +314,28 @@ const styles = StyleSheet.create({
   totalIconText: { fontSize: 14, fontWeight: "900", color: "#111827" },
   totalTitle: { fontSize: 12, fontWeight: "800", color: "#6B7280" },
   totalValue: { marginTop: 6, fontSize: 18, fontWeight: "900" },
+  totalImg: {
+    width: 30, 
+    height: 30,
+  },
+
+  totalItemRow: { 
+    flexDirection: "row", 
+    alignItems: "center",  
+  },
+
+  totalTextGroup: {
+    marginLeft: 8, 
+  },
+
 
   progressCard: {
     marginTop: 14,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 14,
-    ...CARD_SHADOW,
+    //backgroundColor: "#FFFFFF",
+    //borderRadius: 18,
+    paddingBottom: 30,
+    paddingHorizontal: 30,
+    //...CARD_SHADOW,
   },
   progressTrack: {
     height: 34,
@@ -329,7 +357,7 @@ const styles = StyleSheet.create({
     height: 26,
     paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: "#111111",
+    //backgroundColor: "#111111",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -343,6 +371,7 @@ const styles = StyleSheet.create({
   },
   goodRow: {
     marginTop: 10,
+    marginLeft: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -372,8 +401,10 @@ const styles = StyleSheet.create({
   listCard: {
     marginTop: 14,
     backgroundColor: "#EEF2F7",
-    borderRadius: 22,
-    padding: 14,
+    borderTopLeftRadius: 60, 
+    borderTopRightRadius: 60, 
+    padding: 25,
+    flex: 1,
   },
   listHeader: {
     flexDirection: "row",
@@ -402,20 +433,22 @@ const styles = StyleSheet.create({
   },
 
   txRow: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 12,
+    //backgroundColor: "#FFFFFF",
+    //borderRadius: 18,
+    //padding: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginTop: 10,
-    ...CARD_SHADOW,
+    marginBottom: 10,
+    //...CARD_SHADOW,
   },
   txAvatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    backgroundColor: "#F3F4F6",
+    width: 62,
+    height: 62,
+    borderRadius: 16,
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -435,4 +468,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
+  progressRightInside: {
+    position: "absolute",
+    right: 15,
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#111827",
+    fontStyle: 'italic'
+  }
 });

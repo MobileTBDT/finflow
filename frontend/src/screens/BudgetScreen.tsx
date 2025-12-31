@@ -119,30 +119,40 @@ export default function BudgetScreen() {
 
         {/* Totals */}
         <View style={styles.totalsCard}>
+          {/* Khối Thu nhập (Total Income) */}
           <View style={styles.totalBox}>
-            <View style={styles.totalRow}>
-              <View style={styles.totalIcon}>
-                <Text style={styles.totalIconText}>⬇</Text>
+            <View style={styles.totalItemRow}>
+              <Image 
+                source={require("../../assets/total_income.png")} 
+                style={styles.totalImg} 
+                resizeMode="contain" 
+              />
+              <View style={styles.totalTextGroup}>
+                <Text style={styles.totalTitle}>Total Income</Text>
+                <Text style={[styles.totalValue, { color: "#16A34A" }]}>
+                  ${money(totalIncome)}
+                </Text>
               </View>
-              <Text style={styles.totalTitle}>Total Income</Text>
             </View>
-            <Text style={[styles.totalValue, { color: "#16A34A" }]}>
-              ${money(totalIncome)}
-            </Text>
           </View>
 
           <View style={styles.totalsDivider} />
 
+          {/* Khối Chi tiêu (Total Expense) */}
           <View style={styles.totalBox}>
-            <View style={styles.totalRow}>
-              <View style={styles.totalIcon}>
-                <Text style={styles.totalIconText}>⬆</Text>
+            <View style={styles.totalItemRow}>
+              <Image 
+                source={require("../../assets/total_expense.png")} 
+                style={styles.totalImg} 
+                resizeMode="contain" 
+              />
+              <View style={styles.totalTextGroup}>
+                <Text style={styles.totalTitle}>Total Expense</Text>
+                <Text style={[styles.totalValue, { color: "#EF4444" }]}>
+                  ${money(totalExpense)}
+                </Text>
               </View>
-              <Text style={styles.totalTitle}>Total Expense</Text>
             </View>
-            <Text style={[styles.totalValue, { color: "#EF4444" }]}>
-              ${money(totalExpense)}
-            </Text>
           </View>
         </View>
 
@@ -150,22 +160,19 @@ export default function BudgetScreen() {
         <View style={styles.progressCard}>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${percent}%` }]} />
+            
             <View style={styles.progressLeftPill}>
               <Text style={styles.progressLeftText}>{percent}%</Text>
             </View>
+
+            <Text style={styles.progressRightInside}>${money(budget)}</Text>
           </View>
 
-          <View style={styles.progressMetaRow}>
-            <View style={styles.checkRow}>
-              <View style={styles.checkBox}>
+          <View style={styles.goodRow}>
+            <View style={styles.checkBox}>
                 <Text style={styles.checkText}>✓</Text>
-              </View>
-              <Text style={styles.goodText}>
-                {percent}% Of Your Expenses, Looks Good.
-              </Text>
             </View>
-
-            <Text style={styles.budgetText}>${money(budget)}</Text>
+            <Text style={styles.goodText}>{percent}% Of Your Expenses, Looks Good.</Text>
           </View>
         </View>
 
@@ -248,11 +255,18 @@ const CARD_SHADOW = Platform.select({
 });
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F3F4F6" },
-  content: { paddingHorizontal: 18, paddingBottom: 22 },
+  safe: { 
+    flex: 1, 
+    backgroundColor: "#FFFFFF" // Đổi từ #F3F4F6 sang trắng
+  },
+  content: { //paddingHorizontal: 18, paddingBottom: 22 
+    flexGrow: 1,
+  },
 
   header: {
     marginTop: 6,
+    marginLeft: 30,
+    marginRight: 30,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -270,13 +284,13 @@ const styles = StyleSheet.create({
 
   totalsCard: {
     marginTop: 14,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    //backgroundColor: "#FFFFFF",
+    //borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    ...CARD_SHADOW,
+    //...CARD_SHADOW,
   },
   totalsDivider: { width: 1, height: 44, backgroundColor: "#E5E7EB" },
   totalBox: { flex: 1, alignItems: "center" },
@@ -292,13 +306,27 @@ const styles = StyleSheet.create({
   totalIconText: { fontSize: 14, fontWeight: "900", color: "#111827" },
   totalTitle: { fontSize: 12, fontWeight: "800", color: "#6B7280" },
   totalValue: { marginTop: 6, fontSize: 18, fontWeight: "900" },
+  totalImg: {
+    width: 30,
+    height: 30,
+  },
+
+  totalItemRow: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+  },
+
+  totalTextGroup: {
+    marginLeft: 8, 
+  },
 
   progressCard: {
     marginTop: 14,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 14,
-    ...CARD_SHADOW,
+    //backgroundColor: "#FFFFFF",
+    //borderRadius: 18,
+    paddingBottom: 30,
+    paddingHorizontal: 30,
+    //...CARD_SHADOW,
   },
   progressTrack: {
     height: 34,
@@ -320,7 +348,7 @@ const styles = StyleSheet.create({
     height: 26,
     paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: "#111111",
+    //backgroundColor: "#111111",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -358,11 +386,11 @@ const styles = StyleSheet.create({
   budgetText: { fontSize: 13, fontWeight: "900", color: "#111827" },
 
   gridCard: {
-    marginTop: 14,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 14,
-    ...CARD_SHADOW,
+    backgroundColor: "#F1F3F7", 
+    borderTopLeftRadius: 60, 
+    borderTopRightRadius: 60,   
+    padding: 30,
+    flex: 1,
   },
   grid: {
     flexDirection: "row",
@@ -375,9 +403,11 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 16,
-    backgroundColor: "#F3F4F6",
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
   },
   catImg: { width: 40, height: 40 },
   catLabel: { marginTop: 8, fontSize: 12, fontWeight: "800", color: "#6B7280" },
@@ -416,10 +446,13 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: "100%",
-    maxWidth: 340,
+    maxWidth: 320,
     backgroundColor: "#FFFFFF",
     borderRadius: 22,
-    padding: 18,
+    paddingTop: 70,
+    paddingBottom: 70,
+    paddingRight: 30,
+    paddingLeft: 30,
     ...CARD_SHADOW,
   },
   modalTitle: {
@@ -440,6 +473,8 @@ const styles = StyleSheet.create({
 
   modalSave: {
     marginTop: 14,
+    marginLeft: 30,
+    marginRight: 30,
     height: 46,
     borderRadius: 999,
     backgroundColor: "#111111",
@@ -450,6 +485,8 @@ const styles = StyleSheet.create({
 
   modalCancel: {
     marginTop: 10,
+    marginLeft: 30,
+    marginRight: 30,
     height: 46,
     borderRadius: 999,
     backgroundColor: "#E5E7EB",
@@ -457,4 +494,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalCancelText: { color: "#111827", fontSize: 16, fontWeight: "900" },
+
+
+  progressRightInside: {
+    position: "absolute",
+    right: 15,
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#111827",
+    fontStyle: 'italic'
+  },
+  goodRow: {
+    marginTop: 10,
+    marginLeft: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
 });
