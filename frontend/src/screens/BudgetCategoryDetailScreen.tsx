@@ -72,7 +72,7 @@ export default function BudgetCategoryDetailScreen() {
   const route =
     useRoute<RouteProp<RootStackParamList, "BudgetCategoryDetail">>();
 
-  const meta = getBudgetCategory(route.params.categoryId);
+  const meta = route.params.categoryMeta || getBudgetCategory(route.params.categoryId);
   const title = meta?.label ?? "Category";
 
   const [totalIncome] = useState<number>(7783);
@@ -148,11 +148,16 @@ export default function BudgetCategoryDetailScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Pressable
+          <Pressable 
             onPress={() => navigation.goBack()}
-            style={styles.headerBtn}
           >
-            <Text style={styles.headerBtnText}>←</Text>
+            <Image
+              source={require("../../assets/bring back.png")}
+              style={{
+                width: 25,
+                height: 20,
+              }}
+            />
           </Pressable>
 
           <Text style={styles.headerTitle}>{title}</Text>
@@ -283,6 +288,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",

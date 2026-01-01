@@ -18,13 +18,7 @@ import ProfileScreen from "../screens/ProfileScreen";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-function TabIcon({
-  icon,
-  focused,
-}: {
-  icon: ImageSourcePropType;
-  focused: boolean;
-}) {
+function TabIcon({ icon, focused }: { icon: ImageSourcePropType; focused: boolean }) {
   return (
     <View style={[styles.iconWrap, focused && styles.iconWrapFocused]}>
       <Image
@@ -40,16 +34,17 @@ function TabIcon({
 }
 
 function PlusButton() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
-    <Pressable
-      onPress={() => navigation.navigate("AddTransaction")}
-      style={styles.plusBtn}
-    >
-      <Text style={styles.plusText}>＋</Text>
-    </Pressable>
+    <View style={styles.plusBtnContainer}>
+      <Pressable
+        onPress={() => navigation.navigate("AddTransaction")}
+        style={styles.plusBtn}
+      >
+        <Text style={styles.plusText}>＋</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -132,61 +127,61 @@ export default function MainTabsNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 76,
-    paddingTop: 10,
-    paddingBottom: 14,
-    borderTopWidth: 0,
+    height: 90,
     backgroundColor: "#FFFFFF",
+    position: 'absolute',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    borderTopWidth: 0,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -4 },
     elevation: 10,
+    paddingRight: 10,
+    paddingLeft: 10,
+    paddingTop: 20,
   },
 
-  iconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+  plusBtnContainer: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-  iconWrapFocused: {
-    backgroundColor: "#111111",
-  },
-  iconText: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#111111",
-  },
-  iconTextFocused: {
-    color: "#FFFFFF",
   },
 
   plusBtn: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 64,           
+    height: 64,          
+    borderRadius: 32,   
+    backgroundColor: "#FFFFFF",
+    borderWidth: 3,      
+    borderColor: "#111111",  
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    marginTop: -18,
-    borderWidth: 2,
-    borderColor: "#111111",
     shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 12,
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 15,
   },
+
   plusText: {
-    fontSize: 28,
-    fontWeight: "900",
+    fontSize: 32,
+    fontWeight: "600",
     color: "#111111",
     marginTop: -2,
   },
 
+  iconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrapFocused: {
+    backgroundColor: "#111111",
+  },
   iconImage: {
     width: 24,
     height: 24,

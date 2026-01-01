@@ -63,6 +63,26 @@ function MoreTile({ onPress }: { onPress?: () => void }) {
 }
 
 export default function BudgetScreen() {
+  const [categories, setCategories] = useState<Category[]>(BUDGET_CATEGORIES);
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+
+  const handleAddCategory = () => {
+    if (newCatName.trim() === "") return;
+
+    const newId = `new-cat-${Date.now()}`; 
+    const newCategory: Category = {
+      id: newId,
+      label: newCatName,
+      image: require("../../assets/avatar-default.png"), 
+    };
+
+    setCategories([...categories, newCategory]); 
+    setNewCatName("");
+    setIsAddModalOpen(false);
+  };
+
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [totalIncome] = useState<number>(7783);
@@ -100,8 +120,16 @@ export default function BudgetScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Pressable style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>←</Text>
+          <Pressable 
+            onPress={() => navigation.goBack()}
+          >
+            <Image
+              source={require("../../assets/bring back.png")}
+              style={{
+                width: 25,
+                height: 20,
+              }}
+            />
           </Pressable>
 
           <Text style={styles.headerTitle}>Categories</Text>
@@ -119,7 +147,6 @@ export default function BudgetScreen() {
 
         {/* Totals */}
         <View style={styles.totalsCard}>
-          {/* Khối Thu nhập (Total Income) */}
           <View style={styles.totalBox}>
             <View style={styles.totalItemRow}>
               <Image 
@@ -138,7 +165,6 @@ export default function BudgetScreen() {
 
           <View style={styles.totalsDivider} />
 
-          {/* Khối Chi tiêu (Total Expense) */}
           <View style={styles.totalBox}>
             <View style={styles.totalItemRow}>
               <Image 
@@ -179,18 +205,20 @@ export default function BudgetScreen() {
         {/* Category grid */}
         <View style={styles.gridCard}>
           <View style={styles.grid}>
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <CategoryTile
                 key={c.id}
                 item={c}
                 onPress={() =>
                   navigation.navigate("BudgetCategoryDetail", {
                     categoryId: c.id,
+                    categoryMeta: c, 
                   })
                 }
               />
             ))}
-            <MoreTile onPress={() => {}} />
+            
+            <MoreTile onPress={() => setIsAddModalOpen(true)} />
           </View>
 
           <Pressable onPress={openEdit} style={styles.editBtn}>
@@ -200,6 +228,44 @@ export default function BudgetScreen() {
 
         <View style={{ height: 18 }} />
       </ScrollView>
+
+      {/* Modal: New Category */}
+      <Modal
+        visible={isAddModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsAddModalOpen(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setIsAddModalOpen(false)}
+        >
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.modalTitle}>New Category</Text>
+
+            <View style={styles.modalInputWrap}>
+              <TextInput
+                value={newCatName}
+                onChangeText={setNewCatName}
+                placeholder="Write..."
+                placeholderTextColor="#9CA3AF"
+                style={styles.modalInput}
+              />
+            </View>
+
+            <Pressable onPress={handleAddCategory} style={styles.modalSave}>
+              <Text style={styles.modalSaveText}>Save</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setIsAddModalOpen(false)}
+              style={styles.modalCancel}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Modal: Edit Budget */}
       <Modal
@@ -257,7 +323,7 @@ const CARD_SHADOW = Platform.select({
 const styles = StyleSheet.create({
   safe: { 
     flex: 1, 
-    backgroundColor: "#FFFFFF" // Đổi từ #F3F4F6 sang trắng
+    backgroundColor: "#FFFFFF" 
   },
   content: { //paddingHorizontal: 18, paddingBottom: 22 
     flexGrow: 1,
@@ -275,6 +341,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
@@ -395,8 +463,9 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 14,
+    justifyContent: "flex-start", 
+    rowGap: 20,                   
+    columnGap: '3.33%',           
   },
   catTile: { width: "22.5%", alignItems: "center" },
   catIconWrap: {

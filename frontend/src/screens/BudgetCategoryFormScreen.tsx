@@ -70,11 +70,16 @@ export default function BudgetCategoryFormScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Pressable
+          <Pressable 
             onPress={() => navigation.goBack()}
-            style={styles.headerBtn}
           >
-            <Text style={styles.headerBtnText}>←</Text>
+            <Image
+              source={require("../../assets/bring back.png")}
+              style={{
+                width: 25,
+                height: 20,
+              }}
+            />
           </Pressable>
 
           <Text style={styles.headerTitle}>{title}</Text>
@@ -197,8 +202,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+    borderColor: "#E5E7EB",
     borderWidth: 1,
-    borderColor: "#EEF2F7",
   },
   headerBtnText: { fontSize: 18, fontWeight: "900", color: "#111827" },
   headerTitle: { fontSize: 18, fontWeight: "900", color: "#111827" },

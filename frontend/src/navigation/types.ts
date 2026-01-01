@@ -7,7 +7,10 @@ export type RootStackParamList = {
   AddTransaction: undefined; //+
 
   // màn hình detail của Budget Category
-  BudgetCategoryDetail: { categoryId: string };
+  BudgetCategoryDetail: { 
+    categoryId: string;
+    categoryMeta?: any;
+  };
   BudgetCategoryForm: { categoryId: string };
 };
 

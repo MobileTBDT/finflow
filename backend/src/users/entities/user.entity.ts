@@ -29,6 +29,9 @@ export class User {
   @Column({ nullable: true }) 
   image: string;
 
+  @Column({ nullable: true })
+  refreshToken: string | null;
+
   @CreateDateColumn({ name: 'created_at' }) 
   createdAt: Date;
 
