@@ -47,4 +47,6 @@ export class CreateUserDto {
   @IsString()
   @IsUrl({}, { message: 'Ảnh đại diện phải là một đường dẫn URL hợp lệ' })
   image?: string;
+
+  
 }

@@ -1,9 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import {   
+  Injectable, 
+  NotFoundException, 
+  ConflictException, 
+  InternalServerErrorException, 
+  HttpException, 
+  HttpStatus } from '@nestjs/common';
 import { CreateBudgetDto } from './dto/create-budget.dto';
 import { UpdateBudgetDto } from './dto/update-budget.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Budget } from './entities/budget.entity';
 
 @Injectable()
 export class BudgetsService {
+  constructor(
+    @InjectRepository(Budget)
+    private budgetRepository: Repository<Budget>,
+  ) {}
   create(createBudgetDto: CreateBudgetDto) {
     return 'This action adds a new budget';
   }

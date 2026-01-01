@@ -10,10 +10,15 @@ import { Budget } from './budgets/entities/budget.entity';
 import { User } from './users/entities/user.entity';
 import { Category } from './categories/entities/category.entity';
 import { Transaction } from './transactions/entities/transaction.entity';
-
+import { AuthModule } from './auth/auth.module';
+import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
 @Module({
   imports: [
-    UsersModule,  
+    UsersModule,
+    ConfigModule.forRoot({
+      isGlobal: true, 
+    }),  
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: 'localhost',
@@ -28,6 +33,7 @@ import { Transaction } from './transactions/entities/transaction.entity';
     TransactionsModule,
     CategoriesModule,
     BudgetsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

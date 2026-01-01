@@ -4,8 +4,7 @@ import { Type } from 'class-transformer';
 export class CreateTransactionDto {
   @IsNotEmpty({ message: 'Số tiền không được để trống' })
   @IsNumber({}, { message: 'Số tiền phải là dạng số' })
-  // Vì trong entity bạn dùng scale: 0 (số nguyên) và Math.round,
-  // nên có thể thêm validator check số nguyên hoặc số dương tùy nhu cầu.
+
   @Min(0, { message: 'Số tiền không được nhỏ hơn 0' })
   amount: number;
 
