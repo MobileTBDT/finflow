@@ -4,7 +4,6 @@ import { Type } from 'class-transformer';
 export class CreateTransactionDto {
   @IsNotEmpty({ message: 'Số tiền không được để trống' })
   @IsNumber({}, { message: 'Số tiền phải là dạng số' })
-
   @Min(0, { message: 'Số tiền không được nhỏ hơn 0' })
   amount: number;
 
