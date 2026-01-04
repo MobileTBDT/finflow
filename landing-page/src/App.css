@@ -1,7 +1,7 @@
 .page {
   min-height: 100vh;
+  background: var(--bg);
 }
-
 .container {
   width: min(1100px, calc(100% - 40px));
   margin: 0 auto;
@@ -73,9 +73,7 @@
   display: grid;
   place-items: center;
   color: rgba(255, 255, 255, 0.94);
-  background:
-    radial-gradient(120% 120% at 15% 10%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 58%),
-    linear-gradient(135deg, color-mix(in oklab, var(--accent), white 10%), var(--accent2));
+  background: white;
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: 0 14px 40px rgba(38, 132, 255, 0.18);
   transform: translateZ(0);
@@ -312,10 +310,11 @@
 
 .section {
   padding: 56px 0;
+  background: var(--bg);
 }
 
 .section--alt {
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in oklab, var(--bg), white 4%);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
@@ -526,5 +525,293 @@
     transition: none !important;
     animation: none !important;
     transform: none !important;
+  }
+}
+
+/* Extra: pills */
+.hero__pills {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* Add subtle floating to phones */
+.phone--front {
+  animation: floatA 6.5s ease-in-out infinite;
+}
+.phone--back {
+  animation: floatB 7.2s ease-in-out infinite;
+}
+
+@keyframes floatA {
+  0% { transform: translate(18px, 12px) rotate(2.5deg); }
+  50% { transform: translate(18px, 6px) rotate(2.2deg); }
+  100% { transform: translate(18px, 12px) rotate(2.5deg); }
+}
+
+@keyframes floatB {
+  0% { transform: translate(-18px, -8px) rotate(-3.5deg); }
+  50% { transform: translate(-18px, -14px) rotate(-3.2deg); }
+  100% { transform: translate(-18px, -8px) rotate(-3.5deg); }
+}
+
+/* WHY section */
+.grid--why {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 900px) {
+  .grid--why {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.panel--accent {
+  background:
+    radial-gradient(70% 90% at 10% 0%, rgba(38, 132, 255, 0.14), transparent 60%),
+    radial-gradient(70% 90% at 90% 0%, rgba(79, 209, 197, 0.10), transparent 60%),
+    rgba(255, 255, 255, 0.02);
+}
+
+.panel h3 {
+  margin: 0 0 10px;
+  letter-spacing: -0.02em;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+  font-weight: 650;
+}
+.list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trust {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.trust__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Steps */
+.grid--steps {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 760px) {
+  .grid--steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1040px) {
+  .grid--steps {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.step {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.step:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in oklab, var(--border), white 16%);
+  background: rgba(255, 255, 255, 0.03);
+}
+.step__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.step__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(135deg, rgba(38, 132, 255, 0.85), rgba(79, 209, 197, 0.85));
+  box-shadow: 0 12px 30px rgba(38, 132, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+.step__index {
+  color: color-mix(in oklab, var(--muted), white 10%);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.step h3 {
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+  font-size: 16px;
+}
+.step p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+/* FAQ */
+.faq__grid {
+  display: grid;
+  gap: 10px;
+}
+
+.faq {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.faq__q {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  padding: 14px 14px;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.faq__q svg {
+  transition: transform 180ms ease;
+  color: var(--muted);
+}
+.faq.is-open .faq__q svg {
+  transform: rotate(180deg);
+}
+
+.faq__a {
+  max-height: 0px;
+  overflow: hidden;
+  transition: max-height 260ms ease;
+}
+.faq.is-open .faq__a {
+  max-height: 220px;
+}
+.faq__a p {
+  margin: 0;
+  padding: 0 14px 14px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+/* CTA additions */
+.cta__note {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.email {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 860px) {
+  .email {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+}
+
+.email__input {
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+  font-weight: 700;
+}
+.email__input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+.email__input:focus {
+  border-color: color-mix(in oklab, var(--border), white 22%);
+}
+
+.email__btn {
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: var(--text);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  padding: 0 14px;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  box-shadow: 0 14px 40px rgba(38, 132, 255, 0.18);
+}
+.email__btn:hover {
+  transform: translateY(-2px);
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .phone--front,
+  .phone--back {
+    animation: none !important;
+  }
+  .faq__a {
+    transition: none !important;
   }
 }

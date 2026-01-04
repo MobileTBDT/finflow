@@ -10,10 +10,8 @@
     Arial, "Apple Color Emoji", "Segoe UI Emoji";
   line-height: 1.5;
   font-weight: 500;
+
   color-scheme: dark;
-  background: radial-gradient(1200px 700px at 20% 0%, rgba(38, 132, 255, 0.18), transparent 60%),
-    radial-gradient(1000px 600px at 80% 10%, rgba(79, 209, 197, 0.14), transparent 60%),
-    var(--bg);
   color: var(--text);
 
   font-synthesis: none;
@@ -35,6 +33,7 @@ body {
 
 body {
   margin: 0;
+  background: var(--bg);
 }
 
 a {
