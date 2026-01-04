@@ -36,7 +36,8 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-const APK_URL = "https://drive.google.com/";
+const APK_URL =
+  "https://drive.google.com/drive/folders/1NWa9o_lRDdJNlLkfWGYMgcPFceya3XGu?usp=drive_link";
 const SURVEY_URL = "https://forms.gle/";
 const GITHUB_URL = "https://github.com/MobileTBDT/finflow";
 const CONTACT_EMAIL = "bang.nguyendinh@hcmut.edu.vn";
