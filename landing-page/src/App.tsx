@@ -28,7 +28,19 @@ import {
   ChevronDown,
   Star,
   Zap,
+  Users,
+  FileText,
+  Download,
+  Github,
+  Mail,
+  ExternalLink,
 } from "lucide-react";
+
+const APK_URL = "https://drive.google.com/";
+const SURVEY_URL = "https://forms.gle/";
+const GITHUB_URL = "https://github.com/MobileTBDT/finflow";
+const CONTACT_EMAIL = "bang.nguyendinh@hcmut.edu.vn";
+const DEPLOYED_URL = "https://finflow-9zh.pages.dev/";
 
 type Shot = {
   title: string;
@@ -275,6 +287,7 @@ export default function App() {
             <a href="#features">Tính năng</a>
             <a href="#how">Cách hoạt động</a>
             <a href="#screens">Giao diện</a>
+            <a href="#survey">Survey</a>
             <a href="#faq">FAQ</a>
             <a href="#cta">Tải app</a>
           </nav>
@@ -438,6 +451,30 @@ export default function App() {
                 </div>
               </div>
             </Reveal>
+
+            {/* target user */}
+            <Reveal delay={260}>
+              <div className="panel panel--target">
+                <div className="panel__title">
+                  <Users size={18} />
+                  <h3>Ai nên dùng FinFlow?</h3>
+                </div>
+                <ul className="list">
+                  <li>
+                    <CheckCircle2 size={16} /> Sinh viên / người mới đi làm muốn
+                    kiểm soát chi tiêu hằng ngày
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Người muốn đặt ngân sách theo
+                    danh mục (ăn uống, đi lại, mua sắm…)
+                  </li>
+                  <li>
+                    <CheckCircle2 size={16} /> Người cần giao diện gọn, nhập
+                    nhanh, xem lại dễ
+                  </li>
+                </ul>
+              </div>
+            </Reveal>
           </div>
         </section>
 
@@ -557,6 +594,72 @@ export default function App() {
           </div>
         </section>
 
+        {/* survey */}
+        <section id="survey" className="section section--alt">
+          <div className="container">
+            <Reveal>
+              <div className="section__head">
+                <h2>Survey người dùng</h2>
+                <p>
+                  Giúp bọn mình hiểu nhu cầu thật để ưu tiên tính năng đúng và
+                  cải thiện trải nghiệm.
+                </p>
+              </div>
+            </Reveal>
+
+            <div className="grid grid--survey">
+              <Reveal delay={80}>
+                <div className="panel panel--accent">
+                  <div className="panel__title">
+                    <FileText size={18} />
+                    <h3>Điền survey (Google Forms)</h3>
+                  </div>
+                  <p className="muted" style={{ marginTop: 6 }}>
+                    Mất ~2–4 phút. Không yêu cầu thông tin nhạy cảm.
+                  </p>
+
+                  <div className="panel__actions">
+                    <a
+                      className="btn btn--primary"
+                      href={SURVEY_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Mở survey <ExternalLink size={16} />
+                    </a>
+                    <a className="btn btn--secondary" href="#cta">
+                      Tải app trước
+                    </a>
+                  </div>
+                </div>
+              </Reveal>
+
+              <Reveal delay={140}>
+                <div className="panel">
+                  <div className="panel__title">
+                    <Download size={18} />
+                    <h3>Tải APK (Android)</h3>
+                  </div>
+                  <p className="muted" style={{ marginTop: 6 }}>
+                    Tải về và cài đặt thủ công từ Google Drive.
+                  </p>
+
+                  <div className="panel__actions">
+                    <a
+                      className="btn btn--secondary"
+                      href={APK_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Tải APK <ExternalLink size={16} />
+                    </a>
+                  </div>
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
         {/* CTA */}
         <section id="cta" className="section">
           <div className="container">
@@ -565,8 +668,7 @@ export default function App() {
                 <div className="cta__copy">
                   <h2>Sẵn sàng tối ưu chi tiêu?</h2>
                   <p>
-                    Đăng ký nhận thông báo khi FinFlow phát hành để trải nghiệm
-                    sớm.
+                    Chọn tải app hoặc điền survey để bọn mình cải thiện FinFlow.
                   </p>
 
                   <div className="cta__note">
@@ -576,20 +678,44 @@ export default function App() {
                 </div>
 
                 <div className="cta__actions">
+                  {/* Replace placeholders with real links */}
                   <a
                     className="btn btn--primary"
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
+                    href={APK_URL}
+                    target="_blank"
+                    rel="noreferrer"
                   >
-                    <Apple size={16} /> Download for iOS (soon)
+                    <Download size={16} /> Tải APK (Android){" "}
+                    <ExternalLink size={16} />
                   </a>
+
                   <a
                     className="btn btn--secondary"
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
+                    href={SURVEY_URL}
+                    target="_blank"
+                    rel="noreferrer"
                   >
-                    <Smartphone size={16} /> Download for Android (soon)
+                    <FileText size={16} /> Điền survey{" "}
+                    <ExternalLink size={16} />
                   </a>
+
+                  {/* Keep iOS/Android store as "soon" if needed */}
+                  <div className="cta__stores">
+                    <a
+                      className="btn btn--secondary"
+                      href="#"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <Apple size={16} /> iOS (soon)
+                    </a>
+                    <a
+                      className="btn btn--secondary"
+                      href="#"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <Smartphone size={16} /> Android Store (soon)
+                    </a>
+                  </div>
 
                   <form className="email" onSubmit={(e) => e.preventDefault()}>
                     <input
@@ -622,17 +748,48 @@ export default function App() {
                 </span>
               </div>
               <div className="footer__right">
-                <a className="muted" href="#about">
-                  Giới thiệu
+                <a
+                  className="muted"
+                  href={SURVEY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Survey <ExternalLink size={14} />
                 </a>
-                <a className="muted" href="#screens">
-                  Giao diện
+                <a
+                  className="muted"
+                  href={APK_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  APK <ExternalLink size={14} />
                 </a>
-                <a className="muted" href="#faq">
-                  FAQ
+                <a
+                  className="muted"
+                  href={GITHUB_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Github size={14} /> GitHub
+                </a>
+                <a className="muted" href={`mailto:${CONTACT_EMAIL}`}>
+                  <Mail size={14} /> Contact
                 </a>
               </div>
             </footer>
+            <div className="deployHint">
+              <span className="muted">
+                Hosting:{" "}
+                <a
+                  className="muted"
+                  href={DEPLOYED_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {DEPLOYED_URL}
+                </a>
+              </span>
+            </div>
           </div>
         </section>
       </main>

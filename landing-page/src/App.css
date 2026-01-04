@@ -815,3 +815,51 @@
     transition: none !important;
   }
 }
+
+.panel__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.panel__title h3 {
+  margin: 0;
+}
+
+.panel__actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.panel--target {
+  margin-top: 14px;
+}
+
+.grid--survey {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 900px) {
+  .grid--survey {
+    grid-template-columns: 1.15fr 0.85fr;
+  }
+}
+
+.cta__stores {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 860px) {
+  .cta__stores {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.deployHint {
+  margin-top: 10px;
+}
+
+section[id] {
+  scroll-margin-top: var(--nav-offset);
+}
