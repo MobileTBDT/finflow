@@ -3,6 +3,8 @@ name: Deploy FinFlow Backend
 on:
   push:
     branches: [ main ]
+    paths:
+      - '.backend/**'
 
 jobs:
   deploy:
