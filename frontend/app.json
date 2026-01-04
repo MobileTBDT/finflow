@@ -28,7 +28,16 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "finflow",
+          "organization": "none-rgt"
+        }
+      ],
+      "sentry-expo"
     ],
     "extra": {
       "eas": {

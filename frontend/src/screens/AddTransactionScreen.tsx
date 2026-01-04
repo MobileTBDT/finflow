@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-
+import * as Sentry from "@sentry/react-native";
 
 type TxType = "income" | "expense";
 type Panel = "keypad" | "note" | "calendar";
@@ -221,6 +221,44 @@ function Keypad({
           </Text>
         </Pressable>
       </View>
+
+      {/* sentry test */}
+      {/* TEMP: Sentry test (xong nhớ xoá) */}
+      <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+        <Pressable
+          onPress={async () => {
+            Sentry.captureMessage(
+              "FinFlow: Sentry manual test message",
+              "info"
+            );
+            await Sentry.flush();
+          }}
+          style={{ padding: 12, backgroundColor: "#111827", borderRadius: 12 }}
+        >
+          <Text style={{ color: "white", fontWeight: "800" }}>
+            Send Sentry test message
+          </Text>
+        </Pressable>
+
+        <View style={{ height: 10 }} />
+
+        <Pressable
+          onPress={async () => {
+            try {
+              throw new Error("FinFlow: Sentry manual test exception");
+            } catch (e) {
+              Sentry.captureException(e);
+              await Sentry.flush();
+            }
+          }}
+          style={{ padding: 12, backgroundColor: "#7F1D1D", borderRadius: 12 }}
+        >
+          <Text style={{ color: "white", fontWeight: "800" }}>
+            Send Sentry test exception
+          </Text>
+        </Pressable>
+      </View>
+      {/* end sentry test */}
     </View>
   );
 }
