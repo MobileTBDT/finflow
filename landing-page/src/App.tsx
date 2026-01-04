@@ -10,7 +10,6 @@ import logo from "./assets/screens/logo.png";
 import {
   ArrowRight,
   Sparkles,
-  Wallet,
   PieChart,
   LayoutGrid,
   ListPlus,
