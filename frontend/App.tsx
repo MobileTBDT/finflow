@@ -9,7 +9,10 @@ import {
 } from "@expo-google-fonts/poppins";
 
 import AppNavigator from "./src/navigation/AppNavigator";
+//sentry
 import * as Sentry from "@sentry/react-native";
+//firebase analytics
+import analytics from "@react-native-firebase/analytics";
 
 Sentry.init({
   dsn: "https://18d834e6fd8c097f56aa6da9e2b49ec1@o4510502481035264.ingest.de.sentry.io/4510650871578704",
@@ -42,6 +45,14 @@ export default Sentry.wrap(function App() {
     "Poppins-SemiBold": Poppins_600SemiBold,
     "Poppins-Bold": Poppins_700Bold,
   });
+
+
+    //log vào FA khi mở app
+    useEffect(() => {
+      analytics()
+        .logEvent("app_open_test", { source: "dev" })
+        .catch(() => {});
+    }, []);
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {

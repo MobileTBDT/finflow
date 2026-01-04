@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "280757737816",
+    "project_id": "finflowclient",
+    "storage_bucket": "finflowclient.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:280757737816:android:943eaa73b05b7ea05b6d2d",
+        "android_client_info": {
+          "package_name": "com.TBDT.finflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA550Tv7IT8dtcU3KPXZWQpOKZ0db5_5GM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
