@@ -10,12 +10,21 @@ export type RegisterPayload = {
   image: string;
 };
 
-export type RegisterResponse = {
+export type AuthResponse = {
   access_token: string;
   refresh_token: string;
   info: any;
 };
 
 export function register(payload: RegisterPayload) {
-  return apiPost<RegisterResponse>("/auth/register", payload);
+  return apiPost<AuthResponse>("/auth/register", payload);
+}
+
+export type LoginPayload = {
+  username: string;
+  password: string;
+};
+
+export function login(payload: LoginPayload) {
+  return apiPost<AuthResponse>("/auth/login", payload);
 }
