@@ -166,4 +166,70 @@ describe("constants/budgetCategories", () => {
       expect(result).toBeUndefined();
     });
   });
+
+  describe("Individual Category Tests", () => {
+    BUDGET_CATEGORIES.forEach((category, index) => {
+      it(`should have valid id for category ${index + 1}`, () => {
+        expect(typeof category.id).toBe("string");
+        expect(category.id.length).toBeGreaterThan(0);
+      });
+
+      it(`should have valid label for category ${index + 1}`, () => {
+        expect(typeof category.label).toBe("string");
+        expect(category.label.length).toBeGreaterThan(0);
+      });
+
+      it(`should have valid image for category ${index + 1}`, () => {
+        expect(typeof category.image).toBe("string");
+        expect(category.image.length).toBeGreaterThan(0);
+      });
+
+      it(`should getBudgetCategory return correct for '${category.id}'`, () => {
+        const result = getBudgetCategory(category.id);
+        expect(result).toEqual(category);
+      });
+    });
+  });
+
+  describe("Edge Cases for getBudgetCategory", () => {
+    [
+      "",
+      " ",
+      "null",
+      "undefined",
+      "123",
+      "special!@#",
+      "very_long_id_that_does_not_exist",
+      "mixedCase",
+      "with-dash",
+      "with_underscore",
+    ].forEach((invalidId) => {
+      it(`should return undefined for invalid id '${invalidId}'`, () => {
+        const result = getBudgetCategory(invalidId);
+        expect(result).toBeUndefined();
+      });
+    });
+  });
+
+  describe("Uniqueness and Validation", () => {
+    it("should have no duplicate ids", () => {
+      const ids = BUDGET_CATEGORIES.map((c) => c.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it("should have no duplicate labels", () => {
+      const labels = BUDGET_CATEGORIES.map((c) => c.label);
+      expect(new Set(labels).size).toBe(labels.length);
+    });
+
+    it("should have at least 5 categories", () => {
+      expect(BUDGET_CATEGORIES.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it("should have ids matching regex", () => {
+      const regex = /^[a-z0-9-_]+$/;
+      BUDGET_CATEGORIES.forEach((c) => expect(c.id).toMatch(regex));
+    });
+  });
+
 });
