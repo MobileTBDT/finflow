@@ -15,13 +15,4 @@ export class CreateBudgetDto {
   @IsNotEmpty({ message: 'Phải chọn danh mục (Category)' })
   @IsNumber({}, { message: 'Category ID phải là một số' })
   categoryId: number;
-
-  // Lưu ý về User:
-  // Thông thường User ID sẽ được lấy từ Token (JWT) của người đang đăng nhập
-  // nên không cần truyền trong DTO.
-  // Tuy nhiên, nếu bạn muốn truyền thủ công User ID từ Body, hãy bỏ comment dòng dưới:
-  
-  // @IsNotEmpty()
-  // @IsNumber()
-  // userId: number;
 }

@@ -75,8 +75,11 @@ export class UsersService {
     return user;
   }
   
-  async FindByUsername(username: string) : Promise<User> {
-    const user = await this.userRepository.findOne({ where: { username } });
+  async FindByUsername(username: string): Promise<User> {
+    const user = await this.userRepository.createQueryBuilder('user')
+    .where('user.username = :username', { username })
+    .addSelect('user.password') 
+    .getOne();
     if (!user) {
       throw new NotFoundException(`User with username ${username} not found`);
     }

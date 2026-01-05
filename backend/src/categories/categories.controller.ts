@@ -1,34 +1,58 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { 
+  Controller, 
+  Get, 
+  Post, 
+  Body, 
+  Patch, 
+  Param, 
+  Delete, 
+  UseGuards, 
+  Request 
+} from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { AtGuard } from '../auth/guards/at.guard'; 
+import { User } from '../users/entities/user.entity';
 
 @Controller('categories')
+@UseGuards(AtGuard) 
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
+  // 1. Tạo Category mới (Của riêng User)
   @Post()
-  create(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoriesService.create(createCategoryDto);
+  create(@Body() createCategoryDto: CreateCategoryDto, @Request() req) {
+    const userId = req.user['sub'];
+    const user = { id: userId } as User;
+    return this.categoriesService.create(createCategoryDto, user);
   }
 
+  // 2. Lấy danh sách (Mặc định + Riêng)
   @Get()
-  findAll() {
-    return this.categoriesService.findAll();
+  findAll(@Request() req) {
+    const userId = req.user['sub'];
+    return this.categoriesService.findAll(userId);
   }
 
+  // 3. Xem chi tiết
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.categoriesService.findOne(+id);
+  findOne(@Param('id') id: string, @Request() req) {
+    const userId = req.user['sub'];
+    return this.categoriesService.findOne(+id, userId);
   }
 
+  // 4. Cập nhật (Chặn nếu sửa category hệ thống)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
-    return this.categoriesService.update(+id, updateCategoryDto);
+  update( @Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto, @Request() req ) {
+    const userId = req.user['sub'];
+    return this.categoriesService.update(+id, updateCategoryDto, userId);
   }
 
+  // 5. Xóa (Chặn nếu xóa category hệ thống)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.categoriesService.remove(+id);
+  remove(@Param('id') id: string, @Request() req) {
+    const userId = req.user['sub'];
+    return this.categoriesService.remove(+id, userId);
   }
 }
