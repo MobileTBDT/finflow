@@ -1,53 +1,204 @@
 describe("services/analytics - logEvent", () => {
-  afterEach(() => {
+  let warnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
   });
 
-  it("no-op on web", async () => {
-    jest.resetModules();
-    jest.doMock("react-native", () => ({ Platform: { OS: "web" } }));
-    const { logEvent } = require("../analytics");
-    await expect(
-      logEvent("app_open_test", { source: "dev" })
-    ).resolves.toBeUndefined();
+  afterEach(() => {
+    warnSpy.mockRestore();
   });
 
-  it("calls firebase analytics on native", async () => {
-    jest.resetModules();
-    const logEventMock = jest.fn().mockResolvedValue(undefined);
+  describe("Platform: Web", () => {
+    beforeEach(() => {
+      jest.doMock("react-native", () => ({ Platform: { OS: "web" } }));
+    });
 
-    jest.doMock("react-native", () => ({ Platform: { OS: "android" } }));
-    jest.doMock("@react-native-firebase/analytics", () => ({
-      __esModule: true,
-      default: () => ({ logEvent: logEventMock }),
-    }));
+    it("should not throw error on web environment", async () => {
+      const { logEvent } = require("../analytics");
+      await expect(logEvent("test_event")).resolves.not.toThrow();
+    });
 
-    const { logEvent } = require("../analytics");
-    await logEvent("app_open_test", { source: "dev" });
-    expect(logEventMock).toHaveBeenCalledWith("app_open_test", {
-      source: "dev",
+    it("should resolve to undefined on web", async () => {
+      const { logEvent } = require("../analytics");
+      await expect(logEvent("test_event")).resolves.toBeUndefined();
+    });
+
+    it("should accept event parameters on web without error", async () => {
+      const { logEvent } = require("../analytics");
+      await expect(logEvent("test_event", { id: 1 })).resolves.toBeUndefined();
+    });
+
+    it("should accept empty parameters on web", async () => {
+      const { logEvent } = require("../analytics");
+      await expect(logEvent("test_event", {})).resolves.toBeUndefined();
     });
   });
 
-  it("does not throw when analytics.logEvent rejects and logs a warning", async () => {
-    jest.resetModules();
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-    const rejectMock = jest.fn().mockRejectedValue(new Error("boom"));
+  describe("Platform: Android", () => {
+    let logEventMock: jest.Mock;
 
-    jest.doMock("react-native", () => ({ Platform: { OS: "android" } }));
-    jest.doMock("@react-native-firebase/analytics", () => ({
-      __esModule: true,
-      default: () => ({ logEvent: rejectMock }),
-    }));
+    beforeEach(() => {
+      logEventMock = jest.fn().mockResolvedValue(undefined);
+      jest.doMock("react-native", () => ({ Platform: { OS: "android" } }));
+      jest.doMock("@react-native-firebase/analytics", () => ({
+        __esModule: true,
+        default: () => ({ logEvent: logEventMock }),
+      }));
+    });
 
-    const { logEvent } = require("../analytics");
-    await expect(logEvent("ev_err")).resolves.toBeUndefined();
-    expect(rejectMock).toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[analytics] failed to log event"),
-      expect.any(Error)
-    );
-    warnSpy.mockRestore();
+    it("should initialize module without error on Android", () => {
+      expect(() => require("../analytics")).not.toThrow();
+    });
+
+    it("should call firebase logEvent on Android", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("test_event");
+      expect(logEventMock).toHaveBeenCalled();
+    });
+
+    it("should call firebase logEvent exactly once on Android", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("test_event");
+      expect(logEventMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("should pass the correct event name to firebase on Android", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("click_button");
+      expect(logEventMock).toHaveBeenCalledWith("click_button", undefined);
+    });
+
+    it("should pass the correct parameters to firebase on Android", async () => {
+      const { logEvent } = require("../analytics");
+      const params = { user_id: 123, source: "home" };
+      await logEvent("view_item", params);
+      expect(logEventMock).toHaveBeenCalledWith("view_item", params);
+    });
+
+    it("should handle empty object parameters on Android", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("view_item", {});
+      expect(logEventMock).toHaveBeenCalledWith("view_item", {});
+    });
+
+    it("should handle complex nested parameters on Android", async () => {
+      const { logEvent } = require("../analytics");
+      const params = { meta: { version: 1, active: true } };
+      await logEvent("complex_event", params);
+      expect(logEventMock).toHaveBeenCalledWith("complex_event", params);
+    });
+  });
+
+  describe("Platform: iOS", () => {
+    let logEventMock: jest.Mock;
+
+    beforeEach(() => {
+      logEventMock = jest.fn().mockResolvedValue(undefined);
+      jest.doMock("react-native", () => ({ Platform: { OS: "ios" } }));
+      jest.doMock("@react-native-firebase/analytics", () => ({
+        __esModule: true,
+        default: () => ({ logEvent: logEventMock }),
+      }));
+    });
+
+    it("should initialize module without error on iOS", () => {
+      expect(() => require("../analytics")).not.toThrow();
+    });
+
+    it("should call firebase logEvent on iOS", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("test_event_ios");
+      expect(logEventMock).toHaveBeenCalled();
+    });
+
+    it("should call firebase logEvent exactly once on iOS", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("test_event_ios");
+      expect(logEventMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("should pass the correct event name to firebase on iOS", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("swipe_left");
+      expect(logEventMock).toHaveBeenCalledWith("swipe_left", undefined);
+    });
+
+    it("should pass the correct parameters to firebase on iOS", async () => {
+      const { logEvent } = require("../analytics");
+      const params = { screen: "settings" };
+      await logEvent("screen_view", params);
+      expect(logEventMock).toHaveBeenCalledWith("screen_view", params);
+    });
+  });
+
+  describe("Error Handling (Android)", () => {
+    let rejectMock: jest.Mock;
+
+    beforeEach(() => {
+      rejectMock = jest.fn().mockRejectedValue(new Error("Firebase Error"));
+      jest.doMock("react-native", () => ({ Platform: { OS: "android" } }));
+      jest.doMock("@react-native-firebase/analytics", () => ({
+        __esModule: true,
+        default: () => ({ logEvent: rejectMock }),
+      }));
+    });
+
+    it("should attempt to call firebase even if it fails", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("fail_event");
+      expect(rejectMock).toHaveBeenCalled();
+    });
+
+    it("should not throw an exception up the stack when firebase fails", async () => {
+      const { logEvent } = require("../analytics");
+      await expect(logEvent("fail_event")).resolves.not.toThrow();
+    });
+
+    it("should resolve to undefined when firebase fails", async () => {
+      const { logEvent } = require("../analytics");
+      await expect(logEvent("fail_event")).resolves.toBeUndefined();
+    });
+
+    it("should log a warning to console when firebase fails", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("fail_event");
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it("should log the specific error message to console", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("fail_event");
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("[analytics] failed to log event"),
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe("Error Handling (iOS)", () => {
+    let rejectMock: jest.Mock;
+
+    beforeEach(() => {
+      rejectMock = jest.fn().mockRejectedValue(new Error("iOS Unknown Error"));
+      jest.doMock("react-native", () => ({ Platform: { OS: "ios" } }));
+      jest.doMock("@react-native-firebase/analytics", () => ({
+        __esModule: true,
+        default: () => ({ logEvent: rejectMock }),
+      }));
+    });
+
+    it("should not throw an exception on iOS failure", async () => {
+      const { logEvent } = require("../analytics");
+      await expect(logEvent("ios_fail")).resolves.not.toThrow();
+    });
+
+    it("should log a warning to console on iOS failure", async () => {
+      const { logEvent } = require("../analytics");
+      await logEvent("ios_fail");
+      expect(warnSpy).toHaveBeenCalled();
+    });
   });
 });

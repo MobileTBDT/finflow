@@ -1,0 +1,66 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`constants/budgetCategories should match the snapshot 1`] = `
+[
+  {
+    "id": "food",
+    "image": "test-file-stub",
+    "label": "Food",
+  },
+  {
+    "id": "grocery",
+    "image": "test-file-stub",
+    "label": "Grocery",
+  },
+  {
+    "id": "transport",
+    "image": "test-file-stub",
+    "label": "Transportation",
+  },
+  {
+    "id": "utilities",
+    "image": "test-file-stub",
+    "label": "Utilities",
+  },
+  {
+    "id": "rent",
+    "image": "test-file-stub",
+    "label": "Rent",
+  },
+  {
+    "id": "personal",
+    "image": "test-file-stub",
+    "label": "Personal",
+  },
+  {
+    "id": "health",
+    "image": "test-file-stub",
+    "label": "Health",
+  },
+  {
+    "id": "sport",
+    "image": "test-file-stub",
+    "label": "Sport",
+  },
+  {
+    "id": "gift",
+    "image": "test-file-stub",
+    "label": "Gift",
+  },
+  {
+    "id": "saving",
+    "image": "test-file-stub",
+    "label": "Saving",
+  },
+  {
+    "id": "travel",
+    "image": "test-file-stub",
+    "label": "Travel",
+  },
+  {
+    "id": "shopping",
+    "image": "test-file-stub",
+    "label": "Shopping",
+  },
+]
+`;
