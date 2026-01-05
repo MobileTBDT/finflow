@@ -16,6 +16,8 @@
 
 - [ ] **Deploy Backend:** Đẩy server lên Cloud (Render/Railway), đảm bảo có HTTPS.
 - [ ] **Unit Test:** Viết test cho FE/BE. Mục tiêu **>70% coverage**.
+    + [x] Đã xong jest test cho FE (`npm run test:coverage`)
+    + [ ] BE
 - [ ] **API Docs:** Xuất file Swagger hoặc viết file MD mô tả API.
 - [ ] **CI/CD Backend:** Setup GitHub Actions cho Backend (tương tự Frontend).
 
