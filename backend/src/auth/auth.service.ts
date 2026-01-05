@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
+import { CategoriesService } from '../categories/categories.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config'; // Import ConfigService
@@ -9,6 +10,7 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 export class AuthService {
   constructor(
     private usersService: UsersService,
+    private categoriesService: CategoriesService,
     private jwtService: JwtService,
     private configService: ConfigService, 
   ) {}
@@ -17,6 +19,7 @@ export class AuthService {
     const newUser = await this.usersService.create(createUserDto);
     const tokens = await this.getTokens(newUser.id, newUser.username);
     await this.updateRtHash(newUser.id, tokens.refresh_token);
+    await this.categoriesService.addCategoryDefaultForUser(newUser);
     return { 
       ...tokens,
       info: newUser
@@ -33,15 +36,15 @@ export class AuthService {
     const tokens = await this.getTokens(user.id, user.username);
     
     await this.updateRtHash(user.id, tokens.refresh_token);
-
+    const { password, ...result } = user;
     return {
       ...tokens,
-      info: user 
+      info: result 
     };
   }
 
   async logout(userId: number) {
-    await this.usersService.update(userId, { refreshToken: null });
+    await this.usersService.update(userId, { refreshToken: '' });
   }
 
   async refreshTokens(userId: number, rt: string) {
@@ -69,11 +72,11 @@ export class AuthService {
 
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_AT_SECRET'),
+        secret: this.configService.get<string>('JWT_SECRET'),
         expiresIn: '15m',
       }),
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_RT_SECRET'),
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
         expiresIn: '7d',
       }),
     ]);

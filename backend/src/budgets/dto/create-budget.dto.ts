@@ -15,5 +15,4 @@ export class CreateBudgetDto {
   @IsNotEmpty({ message: 'Phải chọn danh mục (Category)' })
   @IsNumber({}, { message: 'Category ID phải là một số' })
   categoryId: number;
-
 }

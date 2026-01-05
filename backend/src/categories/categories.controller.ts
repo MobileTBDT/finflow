@@ -24,7 +24,6 @@ export class CategoriesController {
   @Post()
   create(@Body() createCategoryDto: CreateCategoryDto, @Request() req) {
     const userId = req.user['sub'];
-    // Tạo object user giả để truyền vào (hoặc query full user nếu cần logic phức tạp)
     const user = { id: userId } as User;
     return this.categoriesService.create(createCategoryDto, user);
   }

@@ -12,6 +12,7 @@ import { Repository, IsNull } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Category } from './entities/category.entity';
 import { User } from '../users/entities/user.entity';
+import { TransactionType } from 'src/common/enums/transaction-type.enum';
 
 @Injectable()
 export class CategoriesService {
@@ -81,5 +82,26 @@ export class CategoriesService {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
     return await this.categoryRepository.remove(category);
+  }
+
+  async addCategoryDefaultForUser(user: User) {
+    const defaultCategories = [
+      { name: "Total Income", type: TransactionType.INCOME },
+      { name: "Total Expense", type: TransactionType.EXPENSE },
+      { name: "Food", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=wqMCXXwVnkX2&format=png&color=000000" },
+      { name: "Grocery", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=xQMqV2zd1bUf&format=png&color=000000" },
+      { name: "Transportation", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=WX_XpoOd8F9G&format=png&color=000000" },
+      { name: "Utilities", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=O3Mh96rncyzA&format=png&color=000000" },
+      { name: "Rent", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=NyXo5zshezrT&format=png&color=000000" },
+      { name: "Personal", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=TWWjobLHaAX3&format=png&color=000000" },
+      { name: "Health", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=kaNUDQYjspwx&format=png&color=000000" },
+      { name: "Sport", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=SMjRXXIK5MOb&format=png&color=000000" },
+      { name: "Gift", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=Jle5eTAYFL4C&format=png&color=000000" },
+      { name: "Saving", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=t4mDEwzCvgEr&format=png&color=000000" },
+      { name: "Shopping", type: TransactionType.EXPENSE, icon: "https://img.icons8.com/?size=100&id=nOPXXjs3Jirr&format=png&color=000000" }
+    ];
+    await Promise.all(
+        defaultCategories.map(category => this.create(category, user))
+    );
   }
 }

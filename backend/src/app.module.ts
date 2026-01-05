@@ -15,10 +15,10 @@ import { ConfigModule } from '@nestjs/config';
 import { ConfigService } from '@nestjs/config';
 @Module({
   imports: [
-    UsersModule,
     ConfigModule.forRoot({
       isGlobal: true, 
-    }),  
+    }),
+    UsersModule,  
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -31,7 +31,6 @@ import { ConfigService } from '@nestjs/config';
         database: configService.get<string>('DB_NAME'),
         autoLoadEntities: true,
         entities: [User, Budget, Category, Transaction],
-        synchronize: true, 
       }),
     }),
     TransactionsModule,

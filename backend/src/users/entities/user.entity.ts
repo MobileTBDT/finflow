@@ -30,7 +30,7 @@ export class User {
   image: string;
 
   @Column({ nullable: true })
-  refreshToken: string | null;
+  refreshToken: string;
 
   @CreateDateColumn({ name: 'created_at' }) 
   createdAt: Date;
