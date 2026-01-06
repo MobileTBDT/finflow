@@ -1,43 +1,42 @@
-import { 
-  Injectable, 
-  NotFoundException, 
-  ConflictException, 
-  InternalServerErrorException, 
-  HttpException, 
-  HttpStatus
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  InternalServerErrorException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity'
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User) 
+    @InjectRepository(User)
     private userRepository: Repository<User>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const { username, email, password, phone, ...rest } = createUserDto;
     const existingUser = await this.userRepository.findOne({
-      where: [
-        { username: username},
-        { email: email },
-        { phone: phone }
-      ],
+      where: [{ username: username }, { email: email }, { phone: phone }],
     });
     if (existingUser) {
       if (existingUser.username === username) {
-          throw new HttpException('Username đã tồn tại', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Username đã tồn tại', HttpStatus.BAD_REQUEST);
       }
       if (existingUser.email === email) {
-          throw new HttpException('Email đã tồn tại', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Email đã tồn tại', HttpStatus.BAD_REQUEST);
       }
       if (existingUser.phone === phone) {
-          throw new HttpException('Số điện thoại đã tồn tại', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Số điện thoại đã tồn tại',
+          HttpStatus.BAD_REQUEST,
+        );
       }
     }
     const salt = await bcrypt.genSalt();
@@ -47,8 +46,8 @@ export class UsersService {
       username,
       email,
       phone,
-      password: hashedPassword, 
-      ...rest, 
+      password: hashedPassword,
+      ...rest,
     });
 
     try {
@@ -59,7 +58,27 @@ export class UsersService {
     }
   }
 
-  async findAll() : Promise<User[]> {
+  async findByUsernameOrEmailOrPhone(identifier: string) {
+    return this.userRepository.findOne({
+      where: [
+        { username: identifier },
+        { email: identifier },
+        { phone: identifier },
+      ],
+      select: [
+        'id',
+        'username',
+        'password',
+        'email',
+        'fullname',
+        'phone',
+        'image',
+        'refreshToken',
+      ],
+    });
+  }
+
+  async findAll(): Promise<User[]> {
     const users = await this.userRepository.find();
     if (!users || users.length === 0) {
       throw new NotFoundException('No users found');
@@ -67,26 +86,27 @@ export class UsersService {
     return users;
   }
 
-  async findOne(id: number) : Promise<User> {
+  async findOne(id: number): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
     return user;
   }
-  
+
   async FindByUsername(username: string): Promise<User> {
-    const user = await this.userRepository.createQueryBuilder('user')
-    .where('user.username = :username', { username })
-    .addSelect('user.password') 
-    .getOne();
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.username = :username', { username })
+      .addSelect('user.password')
+      .getOne();
     if (!user) {
       throw new NotFoundException(`User with username ${username} not found`);
     }
     return user;
   }
 
-  async update(id: number, updateUserDto: Partial<User>) : Promise<User> {
+  async update(id: number, updateUserDto: Partial<User>): Promise<User> {
     const user = await this.findOne(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
