@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Image,
   Platform,
@@ -7,26 +7,28 @@ import {
   StyleSheet,
   Text,
   View,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RouteProp } from "@react-navigation/native";
 import type { RootStackParamList } from "../navigation/types";
 import { getBudgetCategory } from "../constants/budgetCategories";
+import { getTransactions, Transaction } from "../services/transactions";
+import { getBudgets, Budget } from "../services/budgets";
+import { getTokens } from "../services/tokenStorage";
+import { showError } from "../utils/toast";
 
-type Tx = {
-  id: string;
-  title: string;
-  time: string;
-  dateLabel: string;
-  amount: string; // "-$26,00"
-};
-
-type Group = {
+type TxGroup = {
   key: string;
   monthLabel: string;
-  items: Tx[];
+  items: Transaction[];
 };
 
 function money(n: number) {
@@ -34,6 +36,27 @@ function money(n: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function formatTime(dateStr: string) {
+  const d = new Date(dateStr);
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function formatDateLabel(dateStr: string) {
+  const d = new Date(dateStr);
+  const month = d.toLocaleString("en-US", { month: "long" });
+  const day = d.getDate();
+  return `${month} ${day}`;
+}
+
+function getCurrentMonth() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 const CARD_SHADOW = Platform.select({
@@ -47,7 +70,11 @@ const CARD_SHADOW = Platform.select({
   default: {},
 });
 
-function TxRow({ image, tx }: { image: any; tx: Tx }) {
+function TxRow({ image, tx }: { image: any; tx: Transaction }) {
+  const amount = Number(tx.amount);
+  const isExpense = tx.category.type === "EXPENSE";
+  const sign = isExpense ? "-" : "+";
+
   return (
     <View style={styles.txRow}>
       <View style={styles.txAvatar}>
@@ -55,13 +82,15 @@ function TxRow({ image, tx }: { image: any; tx: Tx }) {
       </View>
 
       <View style={{ flex: 1 }}>
-        <Text style={styles.txTitle}>{tx.title}</Text>
+        <Text style={styles.txTitle}>{tx.note || tx.category.name}</Text>
         <Text style={styles.txSub}>
-          {tx.time} - {tx.dateLabel}
+          {formatTime(tx.createdAt)} - {formatDateLabel(tx.date)}
         </Text>
       </View>
 
-      <Text style={styles.txAmount}>{tx.amount}</Text>
+      <Text style={styles.txAmount}>
+        {sign}${money(amount)}
+      </Text>
     </View>
   );
 }
@@ -72,12 +101,103 @@ export default function BudgetCategoryDetailScreen() {
   const route =
     useRoute<RouteProp<RootStackParamList, "BudgetCategoryDetail">>();
 
-  const meta = route.params.categoryMeta || getBudgetCategory(route.params.categoryId);
+  const meta =
+    route.params.categoryMeta || getBudgetCategory(route.params.categoryId);
   const title = meta?.label ?? "Category";
 
-  const [totalIncome] = useState<number>(7783);
-  const [totalExpense] = useState<number>(1187.4);
-  const [budget] = useState<number>(20000);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  // Map display category label → backend category name
+  const categoryNameMap: Record<string, string[]> = {
+    Food: ["Food", "Food & Dining"],
+    Grocery: ["Grocery", "Groceries", "Shopping"],
+    Transportation: ["Transportation"],
+    Utilities: ["Utilities", "Bills & Utilities"],
+    Rent: ["Rent"],
+    Personal: ["Personal"],
+    Health: ["Health", "Healthcare"],
+    Sport: ["Sport"],
+    Gift: ["Gift"],
+    Saving: ["Saving"],
+    Travel: ["Travel"],
+    Shopping: ["Shopping"],
+  };
+
+  const loadData = async () => {
+    try {
+      const tokens = await getTokens();
+      if (!tokens?.accessToken) {
+        navigation.replace("Login");
+        return;
+      }
+
+      const currentMonth = getCurrentMonth();
+      const [txs, buds] = await Promise.all([
+        getTransactions(tokens.accessToken),
+        getBudgets(tokens.accessToken, currentMonth),
+      ]);
+
+      // Filter transactions by category
+      const possibleNames = categoryNameMap[title] || [title];
+      const filteredTxs = txs.filter((tx) =>
+        possibleNames.includes(tx.category.name)
+      );
+
+      // Find budget for this category
+      const categoryBudget = buds.find((b) =>
+        possibleNames.includes(b.category.name)
+      );
+
+      setTransactions(filteredTxs);
+      setBudgets(categoryBudget ? [categoryBudget] : []);
+    } catch (err: any) {
+      showError(err.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!loading) {
+        loadData();
+      }
+    }, [loading])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  // Calculate stats (tháng hiện tại)
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const thisMonthTxs = transactions.filter((tx) => {
+    const d = new Date(tx.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+
+  const totalIncome = thisMonthTxs
+    .filter((tx) => tx.category.type === "INCOME")
+    .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+  const totalExpense = thisMonthTxs
+    .filter((tx) => tx.category.type === "EXPENSE")
+    .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+  const budget = budgets.length > 0 ? Number(budgets[0].amount) : 0;
 
   const percent = useMemo(() => {
     if (budget <= 0) return 0;
@@ -87,76 +207,71 @@ export default function BudgetCategoryDetailScreen() {
     );
   }, [totalExpense, budget]);
 
-  const groups: Group[] = useMemo(
-    () => [
-      {
-        key: "apr",
-        monthLabel: "April",
-        items: [
-          {
-            id: "1",
-            title: "Dinner",
-            time: "18:27",
-            dateLabel: "April 30",
-            amount: "-$26,00",
-          },
-          {
-            id: "2",
-            title: "Delivery Pizza",
-            time: "15:00",
-            dateLabel: "April 24",
-            amount: "-$18,35",
-          },
-          {
-            id: "3",
-            title: "Lunch",
-            time: "12:30",
-            dateLabel: "April 15",
-            amount: "-$15,40",
-          },
-          {
-            id: "4",
-            title: "Brunch",
-            time: "9:30",
-            dateLabel: "April 08",
-            amount: "-$12,13",
-          },
-        ],
-      },
-      {
-        key: "mar",
-        monthLabel: "March",
-        items: [
-          {
-            id: "5",
-            title: "Dinner",
-            time: "20:50",
-            dateLabel: "March 31",
-            amount: "-$27,20",
-          },
-        ],
-      },
-    ],
-    []
-  );
+  // Group transactions by month
+  const groups: TxGroup[] = useMemo(() => {
+    const map = new Map<string, Transaction[]>();
+
+    transactions.forEach((tx) => {
+      const d = new Date(tx.date);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}`;
+      const monthLabel = d.toLocaleString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+
+      if (!map.has(monthKey)) {
+        map.set(monthKey, []);
+      }
+      map.get(monthKey)!.push(tx);
+    });
+
+    // Sort by date desc
+    const sorted = Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, items]) => {
+        const d = new Date(key + "-01");
+        return {
+          key,
+          monthLabel: d.toLocaleString("en-US", { month: "long" }),
+          items: items.sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          ),
+        };
+      });
+
+    return sorted;
+  }, [transactions]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator size="large" color="#111827" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
-          <Pressable 
-            onPress={() => navigation.goBack()}
-          >
+          <Pressable onPress={() => navigation.goBack()}>
             <Image
               source={require("../../assets/bring back.png")}
-              style={{
-                width: 25,
-                height: 20,
-              }}
+              style={{ width: 25, height: 20 }}
             />
           </Pressable>
 
@@ -165,10 +280,7 @@ export default function BudgetCategoryDetailScreen() {
           <Pressable style={styles.headerBtn}>
             <Image
               source={require("../../assets/noti.png")}
-              style={{
-                width: 20,
-                height: 20,
-              }}
+              style={{ width: 20, height: 20 }}
             />
           </Pressable>
         </View>
@@ -177,10 +289,10 @@ export default function BudgetCategoryDetailScreen() {
         <View style={styles.totalsCard}>
           <View style={styles.totalBox}>
             <View style={styles.totalItemRow}>
-              <Image 
-                source={require("../../assets/total_income.png")} 
-                style={styles.totalImg} 
-                resizeMode="contain" 
+              <Image
+                source={require("../../assets/total_income.png")}
+                style={styles.totalImg}
+                resizeMode="contain"
               />
               <View style={styles.totalTextGroup}>
                 <Text style={styles.totalTitle}>Total Income</Text>
@@ -195,10 +307,10 @@ export default function BudgetCategoryDetailScreen() {
 
           <View style={styles.totalBox}>
             <View style={styles.totalItemRow}>
-              <Image 
-                source={require("../../assets/total_expense.png")} 
-                style={styles.totalImg} 
-                resizeMode="contain" 
+              <Image
+                source={require("../../assets/total_expense.png")}
+                style={styles.totalImg}
+                resizeMode="contain"
               />
               <View style={styles.totalTextGroup}>
                 <Text style={styles.totalTitle}>Total Expense</Text>
@@ -214,7 +326,7 @@ export default function BudgetCategoryDetailScreen() {
         <View style={styles.progressCard}>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${percent}%` }]} />
-            
+
             <View style={styles.progressLeftPill}>
               <Text style={styles.progressLeftText}>{percent}%</Text>
             </View>
@@ -224,32 +336,42 @@ export default function BudgetCategoryDetailScreen() {
 
           <View style={styles.goodRow}>
             <View style={styles.checkBox}>
-                <Text style={styles.checkText}>✓</Text>
+              <Text style={styles.checkText}>✓</Text>
             </View>
-            <Text style={styles.goodText}>{percent}% Of Your Expenses, Looks Good.</Text>
+            <Text style={styles.goodText}>
+              {percent}% Of Your Expenses, Looks Good.
+            </Text>
           </View>
         </View>
 
         {/* Transactions card */}
         <View style={styles.listCard}>
           <View style={styles.listHeader}>
-            <Text style={styles.listHeaderText}>April</Text>
+            <Text style={styles.listHeaderText}>
+              {groups[0]?.monthLabel || "Transactions"}
+            </Text>
             <Pressable style={styles.calendarBtn}>
               <Text style={styles.calendarText}>📅</Text>
             </Pressable>
           </View>
 
-          {groups.map((g) => (
-            <View key={g.key} style={{ marginTop: g.key === "apr" ? 6 : 14 }}>
-              {g.key !== "apr" ? (
-                <Text style={styles.monthLabel}>{g.monthLabel}</Text>
-              ) : null}
-
-              {g.items.map((tx) => (
-                <TxRow key={tx.id} image={meta?.image} tx={tx} />
-              ))}
+          {groups.length === 0 ? (
+            <View style={{ marginTop: 20, alignItems: "center" }}>
+              <Text style={styles.emptyText}>No transactions yet</Text>
             </View>
-          ))}
+          ) : (
+            groups.map((g, idx) => (
+              <View key={g.key} style={{ marginTop: idx === 0 ? 6 : 14 }}>
+                {idx !== 0 ? (
+                  <Text style={styles.monthLabel}>{g.monthLabel}</Text>
+                ) : null}
+
+                {g.items.map((tx) => (
+                  <TxRow key={tx.id} image={meta?.image} tx={tx} />
+                ))}
+              </View>
+            ))
+          )}
 
           <Pressable
             onPress={() =>
@@ -259,7 +381,7 @@ export default function BudgetCategoryDetailScreen() {
             }
             style={styles.addBtn}
           >
-            <Text style={styles.addBtnText}>Add Balance</Text>
+            <Text style={styles.addBtnText}>Set Budget</Text>
           </Pressable>
         </View>
 
@@ -271,10 +393,7 @@ export default function BudgetCategoryDetailScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#FFFFFF" },
-  content: { 
-    //paddingHorizontal: 18, paddingBottom: 22 
-    flexGrow: 1,
-  },
+  content: { flexGrow: 1 },
 
   header: {
     marginTop: 6,
@@ -294,55 +413,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerBtnText: { fontSize: 18, fontWeight: "900", color: "#111827" },
   headerTitle: { fontSize: 18, fontWeight: "900", color: "#111827" },
 
   totalsCard: {
     marginTop: 14,
-    //backgroundColor: "#FFFFFF",
-    //borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    //...CARD_SHADOW,
   },
   totalsDivider: { width: 1, height: 44, backgroundColor: "#E5E7EB" },
   totalBox: { flex: 1, alignItems: "center" },
-  totalRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  totalIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  totalIconText: { fontSize: 14, fontWeight: "900", color: "#111827" },
   totalTitle: { fontSize: 12, fontWeight: "800", color: "#6B7280" },
   totalValue: { marginTop: 6, fontSize: 18, fontWeight: "900" },
-  totalImg: {
-    width: 30, 
-    height: 30,
-  },
-
-  totalItemRow: { 
-    flexDirection: "row", 
-    alignItems: "center",  
-  },
-
-  totalTextGroup: {
-    marginLeft: 8, 
-  },
-
+  totalImg: { width: 30, height: 30 },
+  totalItemRow: { flexDirection: "row", alignItems: "center" },
+  totalTextGroup: { marginLeft: 8 },
 
   progressCard: {
     marginTop: 14,
-    //backgroundColor: "#FFFFFF",
-    //borderRadius: 18,
     paddingBottom: 30,
     paddingHorizontal: 30,
-    //...CARD_SHADOW,
   },
   progressTrack: {
     height: 34,
@@ -364,18 +455,10 @@ const styles = StyleSheet.create({
     height: 26,
     paddingHorizontal: 10,
     borderRadius: 999,
-    //backgroundColor: "#111111",
     alignItems: "center",
     justifyContent: "center",
   },
   progressLeftText: { color: "#FFFFFF", fontWeight: "900", fontSize: 12 },
-  progressRightText: {
-    position: "absolute",
-    right: 12,
-    color: "#111827",
-    fontWeight: "900",
-    fontSize: 12,
-  },
   goodRow: {
     marginTop: 10,
     marginLeft: 10,
@@ -408,8 +491,8 @@ const styles = StyleSheet.create({
   listCard: {
     marginTop: 14,
     backgroundColor: "#EEF2F7",
-    borderTopLeftRadius: 60, 
-    borderTopRightRadius: 60, 
+    borderTopLeftRadius: 60,
+    borderTopRightRadius: 60,
     padding: 25,
     flex: 1,
   },
@@ -440,14 +523,10 @@ const styles = StyleSheet.create({
   },
 
   txRow: {
-    //backgroundColor: "#FFFFFF",
-    //borderRadius: 18,
-    //padding: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     marginBottom: 10,
-    //...CARD_SHADOW,
   },
   txAvatar: {
     width: 62,
@@ -463,6 +542,8 @@ const styles = StyleSheet.create({
   txTitle: { fontSize: 15, fontWeight: "900", color: "#111827" },
   txSub: { marginTop: 6, fontSize: 12, fontWeight: "800", color: "#6B7280" },
   txAmount: { fontSize: 14, fontWeight: "900", color: "#111827" },
+
+  emptyText: { fontSize: 14, fontWeight: "800", color: "#9CA3AF" },
 
   addBtn: {
     marginTop: 16,
@@ -481,6 +562,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     color: "#111827",
-    fontStyle: 'italic'
-  }
+    fontStyle: "italic",
+  },
 });

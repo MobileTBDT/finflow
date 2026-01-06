@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import {
   LayoutAnimation,
   Platform,
@@ -9,10 +9,19 @@ import {
   UIManager,
   View,
   Image,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../navigation/types";
 import Svg, { Circle } from "react-native-svg";
+
+import { getTransactions, Transaction } from "../services/transactions";
+import { getBudgets, Budget } from "../services/budgets";
+import { getTokens } from "../services/tokenStorage";
+import { showError } from "../utils/toast";
 
 if (
   Platform.OS === "android" &&
@@ -25,6 +34,66 @@ type Mode = "weekly" | "monthly";
 
 function animateNext() {
   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+}
+
+function getCurrentMonth() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function getWeekDates() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // Monday
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff);
+
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+function getMonthWeeks() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+
+  const weeks = [];
+  let currentWeek = 1;
+  let weekStart = new Date(firstDay);
+
+  while (weekStart <= lastDay) {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    if (weekEnd > lastDay) {
+      weeks.push({
+        week: currentWeek,
+        start: weekStart,
+        end: lastDay,
+      });
+    } else {
+      weeks.push({
+        week: currentWeek,
+        start: new Date(weekStart),
+        end: new Date(weekEnd),
+      });
+    }
+
+    weekStart.setDate(weekStart.getDate() + 7);
+    currentWeek++;
+  }
+
+  return weeks;
 }
 
 function Segmented({
@@ -159,7 +228,7 @@ function BarChart({
   onSelect,
 }: {
   points: BarPoint[];
-  maxLabel: string; // e.g. "$4k"
+  maxLabel: string;
   selectedKey?: string;
   onSelect: (k: string) => void;
 }) {
@@ -170,9 +239,9 @@ function BarChart({
       {/* y-axis labels */}
       <View style={styles.chartYAxis}>
         <Text style={styles.yLabel}>{maxLabel}</Text>
-        <Text style={styles.yLabelMid}>$3k</Text>
-        <Text style={styles.yLabelMid}>$2k</Text>
-        <Text style={styles.yLabelMid}>$1k</Text>
+        <Text style={styles.yLabelMid}>75%</Text>
+        <Text style={styles.yLabelMid}>50%</Text>
+        <Text style={styles.yLabelMid}>25%</Text>
         <Text style={styles.yLabel0}>0</Text>
       </View>
 
@@ -196,14 +265,12 @@ function BarChart({
                 }}
                 style={styles.barSlot}
               >
-                {/* tooltip like design */}
                 {selected && p.tooltip ? (
                   <View style={styles.tooltip}>
                     <Text style={styles.tooltipValue}>{p.tooltip}</Text>
                   </View>
                 ) : null}
 
-                {/* selected guide (dotted vertical line + circle) */}
                 {selected ? (
                   <View pointerEvents="none" style={styles.selectedGuide}>
                     <View style={styles.selectedLine} />
@@ -273,65 +340,229 @@ function ReportItem({
 }
 
 export default function ReportScreen() {
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [mode, setMode] = useState<Mode>("weekly");
 
-  const weeklyPoints: BarPoint[] = useMemo(
-    () => [
-      { key: "mo", label: "M", value: 900, tooltip: "$0.9K" },
-      { key: "tu", label: "T", value: 1600, tooltip: "$1.6K" },
-      { key: "we", label: "W", value: 900, tooltip: "$0.9K" },
-      { key: "th", label: "T", value: 1400, tooltip: "$1.4K" },
-      { key: "fr", label: "F", value: 3200, tooltip: "$3.2K" },
-      { key: "sa", label: "S", value: 1900, tooltip: "$1.9K" },
-      { key: "su", label: "S", value: 3400, tooltip: "$3.4K" },
-    ],
-    []
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  const loadData = async () => {
+    try {
+      const tokens = await getTokens();
+      if (!tokens?.accessToken) {
+        navigation.replace("Login");
+        return;
+      }
+
+      const currentMonth = getCurrentMonth();
+      const [txs, buds] = await Promise.all([
+        getTransactions(tokens.accessToken),
+        getBudgets(tokens.accessToken, currentMonth),
+      ]);
+
+      setTransactions(txs);
+      setBudgets(buds);
+    } catch (err: any) {
+      showError(err.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!loading) {
+        loadData();
+      }
+    }, [loading])
   );
 
-  const monthlyPoints: BarPoint[] = useMemo(
-    () => [
-      { key: "w1", label: "W1", value: 1200, tooltip: "$1.2K" },
-      { key: "w2", label: "W2", value: 1800, tooltip: "$1.8K" },
-      { key: "w3", label: "W3", value: 2400, tooltip: "$2.4K" },
-      { key: "w4", label: "W4", value: 900, tooltip: "$0.9K" },
-      { key: "w5", label: "W5", value: 2100, tooltip: "$2.1K" },
-      { key: "w6", label: "W6", value: 1600, tooltip: "$1.6K" },
-      { key: "w7", label: "W7", value: 2600, tooltip: "$2.6K" },
-    ],
-    []
-  );
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
 
-  const points = mode === "weekly" ? weeklyPoints : monthlyPoints;
+  // Calculate chart data
+  const chartData = useMemo(() => {
+    if (mode === "weekly") {
+      const weekDates = getWeekDates();
+      const points: BarPoint[] = weekDates.map((date) => {
+        const dayTxs = transactions.filter((tx) => {
+          const txDate = new Date(tx.date);
+          return (
+            tx.category.type === "EXPENSE" &&
+            txDate.toDateString() === date.toDateString()
+          );
+        });
 
-  const [selectedKey, setSelectedKey] = useState(points[4]?.key);
+        const total = dayTxs.reduce((sum, tx) => sum + Number(tx.amount), 0);
+        const label = ["M", "T", "W", "T", "F", "S", "S"][
+          date.getDay() === 0 ? 6 : date.getDay() - 1
+        ];
 
-  // keep selectedKey valid when switching mode
-  React.useEffect(() => {
-    setSelectedKey((prev) =>
-      points.some((p) => p.key === prev) ? prev : points[4]?.key
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+        return {
+          key: date.toISOString(),
+          label,
+          value: total,
+          tooltip: `$${(total / 1000).toFixed(1)}K`,
+        };
+      });
 
-  const headerLeftLabel = mode === "weekly" ? "Sep 2025" : "Sep 2025";
+      return points;
+    } else {
+      // Monthly: group by week
+      const weeks = getMonthWeeks();
+      const points: BarPoint[] = weeks.map((w) => {
+        const weekTxs = transactions.filter((tx) => {
+          const txDate = new Date(tx.date);
+          return (
+            tx.category.type === "EXPENSE" &&
+            txDate >= w.start &&
+            txDate <= w.end
+          );
+        });
+
+        const total = weekTxs.reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+        return {
+          key: `w${w.week}`,
+          label: `W${w.week}`,
+          value: total,
+          tooltip: `$${(total / 1000).toFixed(1)}K`,
+        };
+      });
+
+      return points;
+    }
+  }, [transactions, mode]);
+
+  const [selectedKey, setSelectedKey] = useState(chartData[0]?.key || "");
+
+  useEffect(() => {
+    if (chartData.length > 0 && !chartData.some((p) => p.key === selectedKey)) {
+      setSelectedKey(
+        chartData[Math.floor(chartData.length / 2)]?.key || chartData[0].key
+      );
+    }
+  }, [chartData]);
+
+  // Calculate totals & status
+  const totalExpense = chartData.reduce((sum, p) => sum + p.value, 0);
+  const totalBudget = budgets.reduce((sum, b) => sum + Number(b.amount), 0);
+  const status: "over" | "under" =
+    totalExpense > totalBudget ? "over" : "under";
+
+  const now = new Date();
+  const headerLeftLabel =
+    mode === "weekly"
+      ? `Week ${Math.ceil(now.getDate() / 7)}, ${now.toLocaleString("en-US", {
+          month: "short",
+          year: "numeric",
+        })}`
+      : now.toLocaleString("en-US", { month: "long", year: "numeric" });
+
   const totalLabel =
-    mode === "weekly" ? "Total Spending $1.7K" : "Total Spent $250";
-  const status: "over" | "under" = mode === "weekly" ? "over" : "under";
+    mode === "weekly"
+      ? `Total Spending $${(totalExpense / 1000).toFixed(1)}K`
+      : `Total Spent $${(totalExpense / 1000).toFixed(1)}K`;
+
+  const maxValue = Math.max(...chartData.map((p) => p.value), 1);
+  const maxLabel = `$${Math.ceil(maxValue / 1000)}k`;
+
+  // Category breakdown
+  const categoryMap = new Map<
+    string,
+    { total: number; count: number; icon?: string }
+  >();
+
+  const relevantTxs =
+    mode === "weekly"
+      ? transactions.filter((tx) => {
+          const txDate = new Date(tx.date);
+          const weekDates = getWeekDates();
+          return weekDates.some(
+            (d) => d.toDateString() === txDate.toDateString()
+          );
+        })
+      : transactions.filter((tx) => {
+          const txDate = new Date(tx.date);
+          return (
+            txDate.getMonth() === now.getMonth() &&
+            txDate.getFullYear() === now.getFullYear()
+          );
+        });
+
+  relevantTxs
+    .filter((tx) => tx.category.type === "EXPENSE")
+    .forEach((tx) => {
+      const key = tx.category.name;
+      const existing = categoryMap.get(key) || {
+        total: 0,
+        count: 0,
+        icon: tx.category.icon,
+      };
+      existing.total += Number(tx.amount);
+      existing.count += 1;
+      categoryMap.set(key, existing);
+    });
+
+  const categories = Array.from(categoryMap.entries())
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.total - a.total);
+
+  // Category images (hardcoded)
+  const categoryImages: Record<string, any> = {
+    Food: require("../../assets/food.png"),
+    "Food & Dining": require("../../assets/food.png"),
+    Grocery: require("../../assets/grocery.png"),
+    Groceries: require("../../assets/grocery.png"),
+    Shopping: require("../../assets/shopping.png"),
+    Transportation: require("../../assets/transportation.png"),
+    Health: require("../../assets/health.png"),
+    Healthcare: require("../../assets/health.png"),
+    Utilities: require("../../assets/utilities.png"),
+    Rent: require("../../assets/rent.png"),
+    Personal: require("../../assets/personal.png"),
+    Sport: require("../../assets/sport.png"),
+    Gift: require("../../assets/gift.png"),
+    Saving: require("../../assets/saving.png"),
+    Travel: require("../../assets/travel.png"),
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator size="large" color="#111827" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
           <Pressable
             onPress={() => {
-              // Trong tab, thường không có back stack. Nếu có stack thì goBack được.
-              // Nếu không có thì sẽ không làm gì.
-              // @ts-ignore
               if (navigation.canGoBack?.()) navigation.goBack();
             }}
             style={styles.headerBtn}
@@ -363,56 +594,61 @@ export default function ReportScreen() {
           </View>
 
           <BarChart
-            points={points}
-            maxLabel={mode === "weekly" ? "$4k" : "$80"}
+            points={chartData}
+            maxLabel={maxLabel}
             selectedKey={selectedKey}
             onSelect={setSelectedKey}
           />
         </View>
 
-        {/* List */}
-        <ReportItem
-          image={require("../../assets/food.png")}
-          title="Food"
-          subtitle="80% of Total"
-          rightType="progress"
-          progress={0.8}
-        />
-        <ReportItem
-          image={require("../../assets/shopping.png")}
-          title="Shopping"
-          subtitle="Over budget"
-          rightType="over"
-        />
-        <ReportItem
-          image={require("../../assets/health.png")}
-          title="Health Care"
-          subtitle="0% of Total"
-          rightType="empty"
-        />
-        <ReportItem
-          image={require("../../assets/grocery.png")}
-          title="Groceries"
-          subtitle="70% of Total"
-          rightType="progress"
-          progress={0.7}
-        />
-        <ReportItem
-          image={require("../../assets/transportation.png")}
-          title="Transportation"
-          subtitle="100% of Total"
-          rightType="progress"
-          progress={1}
-        />
-        <ReportItem
-          image={require("../../assets/utilities.png")}
-          title="Utilities"
-          subtitle="100% of Total"
-          rightType="progress"
-          progress={1}
-        />
+        {/* Category List */}
+        {categories.length > 0 ? (
+          categories.map((cat) => {
+            const img =
+              categoryImages[cat.name] || require("../../assets/food.png");
+            const percent =
+              totalExpense > 0
+                ? Math.round((cat.total / totalExpense) * 100)
+                : 0;
 
-        {/* để list dài scroll mượt */}
+            const budget = budgets.find((b) => b.category.name === cat.name);
+            const budgetAmount = budget ? Number(budget.amount) : 0;
+            const isOver = budgetAmount > 0 && cat.total > budgetAmount;
+
+            const rightType: "progress" | "over" | "empty" = isOver
+              ? "over"
+              : budgetAmount > 0
+              ? "progress"
+              : "empty";
+
+            const progress =
+              budgetAmount > 0 ? Math.min(1, cat.total / budgetAmount) : 0;
+
+            const subtitle = isOver
+              ? "Over budget"
+              : budgetAmount > 0
+              ? `${percent}% of Total`
+              : "0% of Total";
+
+            return (
+              <ReportItem
+                key={cat.name}
+                image={img}
+                title={cat.name}
+                subtitle={subtitle}
+                rightType={rightType}
+                progress={progress}
+              />
+            );
+          })
+        ) : (
+          <View style={{ marginTop: 20, alignItems: "center" }}>
+            <Text style={{ fontSize: 14, fontWeight: "800", color: "#9CA3AF" }}>
+              No expenses in this period
+            </Text>
+          </View>
+        )}
+
         <View style={{ height: 18 }} />
       </ScrollView>
     </SafeAreaView>

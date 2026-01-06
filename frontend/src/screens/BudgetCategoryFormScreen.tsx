@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Platform,
   Pressable,
@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -15,6 +16,10 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RouteProp } from "@react-navigation/native";
 import type { RootStackParamList } from "../navigation/types";
 import { getBudgetCategory } from "../constants/budgetCategories";
+import { createOrUpdateBudget } from "../services/budgets";
+import { getCategories, Category } from "../services/transactions";
+import { getTokens } from "../services/tokenStorage";
+import { showSuccess, showError } from "../utils/toast";
 
 const CARD_SHADOW = Platform.select({
   ios: {
@@ -27,14 +32,12 @@ const CARD_SHADOW = Platform.select({
   default: {},
 });
 
-type PercentOption =
-  | "Select the percentage"
-  | "10%"
-  | "20%"
-  | "30%"
-  | "50%"
-  | "70%"
-  | "100%";
+function getCurrentMonth() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
 
 export default function BudgetCategoryFormScreen() {
   const navigation =
@@ -47,20 +50,108 @@ export default function BudgetCategoryFormScreen() {
     [meta?.label]
   );
 
-  const [dateText, setDateText] = useState("April 30 ,2024");
-  const [percent, setPercent] = useState<PercentOption>(
-    "Select the percentage"
-  );
-  const [amount, setAmount] = useState("$26,00");
-  const [credit, setCredit] = useState("$200,00");
-  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [percentOpen, setPercentOpen] = useState(false);
+  const [backendCategories, setBackendCategories] = useState<Category[]>([]);
+  const [amount, setAmount] = useState("");
 
-  const onSave = () => {
-    // TODO: hook API / store
-    navigation.goBack();
+  // Map display category label → backend category name
+  const categoryNameMap: Record<string, string[]> = {
+    Food: ["Food", "Food & Dining"],
+    Grocery: ["Grocery", "Groceries", "Shopping"],
+    Transportation: ["Transportation"],
+    Utilities: ["Utilities", "Bills & Utilities"],
+    Rent: ["Rent"],
+    Personal: ["Personal"],
+    Health: ["Health", "Healthcare"],
+    Sport: ["Sport"],
+    Gift: ["Gift"],
+    Saving: ["Saving"],
+    Travel: ["Travel"],
+    Shopping: ["Shopping"],
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const tokens = await getTokens();
+        if (!tokens?.accessToken) {
+          navigation.replace("Login");
+          return;
+        }
+
+        const cats = await getCategories(tokens.accessToken);
+        setBackendCategories(cats);
+      } catch (err: any) {
+        showError(err.message || "Failed to load categories");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const onSave = async () => {
+    if (saving) return;
+
+    try {
+      const cleaned = amount.replace(/[^\d.]/g, "");
+      const budgetAmount = Number(cleaned);
+
+      if (!Number.isFinite(budgetAmount) || budgetAmount <= 0) {
+        showError("Please enter a valid amount");
+        return;
+      }
+
+      const possibleNames = categoryNameMap[meta?.label || ""] || [
+        meta?.label || "",
+      ];
+      const backendCategory = backendCategories.find(
+        (c) => c.type === "EXPENSE" && possibleNames.includes(c.name)
+      );
+
+      if (!backendCategory) {
+        showError(`Category "${meta?.label}" not found in database`);
+        return;
+      }
+
+      setSaving(true);
+
+      const tokens = await getTokens();
+      if (!tokens?.accessToken) {
+        navigation.replace("Login");
+        return;
+      }
+
+      await createOrUpdateBudget(
+        {
+          categoryId: backendCategory.id,
+          amount: budgetAmount,
+          month: getCurrentMonth(),
+        },
+        tokens.accessToken
+      );
+
+      showSuccess("Budget set successfully!");
+      navigation.goBack();
+    } catch (err: any) {
+      showError(err.message || "Failed to set budget");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator size="large" color="#111827" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -70,15 +161,10 @@ export default function BudgetCategoryFormScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Pressable 
-            onPress={() => navigation.goBack()}
-          >
+          <Pressable onPress={() => navigation.goBack()}>
             <Image
               source={require("../../assets/bring back.png")}
-              style={{
-                width: 25,
-                height: 20,
-              }}
+              style={{ width: 25, height: 20 }}
             />
           </Pressable>
 
@@ -87,90 +173,39 @@ export default function BudgetCategoryFormScreen() {
           <Pressable style={styles.headerBtn}>
             <Image
               source={require("../../assets/noti.png")}
-              style={{
-                width: 20,
-                height: 20,
-              }}
+              style={{ width: 20, height: 20 }}
             />
           </Pressable>
         </View>
 
         {/* Form Card */}
         <View style={styles.formCard}>
-          <Text style={styles.label}>Date</Text>
-          <Pressable style={styles.inputRow} onPress={() => {}}>
-            <Text style={styles.inputText}>{dateText}</Text>
-            <Text style={styles.trailing}>📅</Text>
-          </Pressable>
-
-          <Text style={[styles.label, { marginTop: 16 }]}>Percentage</Text>
-          <Pressable
-            style={styles.inputRow}
-            onPress={() => setPercentOpen((v) => !v)}
-          >
-            <Text
-              style={[
-                styles.inputText,
-                percent === "Select the percentage" && styles.placeholder,
-              ]}
-            >
-              {percent}
-            </Text>
-            <Text style={styles.trailing}>⌄</Text>
-          </Pressable>
-
-          {percentOpen ? (
-            <View style={styles.dropdown}>
-              {(["10%", "20%", "30%", "50%", "70%", "100%"] as const).map(
-                (p) => (
-                  <Pressable
-                    key={p}
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setPercent(p);
-                      setPercentOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownText}>{p}</Text>
-                  </Pressable>
-                )
-              )}
-            </View>
-          ) : null}
-
-          <Text style={[styles.label, { marginTop: 16 }]}>Amount</Text>
+          <Text style={styles.label}>Budget Amount</Text>
           <View style={styles.inputRow}>
             <TextInput
               value={amount}
               onChangeText={setAmount}
+              placeholder="Enter amount..."
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
               style={styles.inputText}
-              keyboardType="default"
             />
           </View>
 
-          <Text style={[styles.label, { marginTop: 16 }]}>Credit</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              value={credit}
-              onChangeText={setCredit}
-              style={styles.inputText}
-              keyboardType="default"
-            />
-          </View>
+          <Text style={styles.hint}>
+            Set a monthly budget limit for {meta?.label || "this category"}
+          </Text>
 
-          <Text style={[styles.label, { marginTop: 18 }]}>Enter Message</Text>
-          <View style={styles.textArea}>
-            <TextInput
-              value={message}
-              onChangeText={setMessage}
-              placeholder=""
-              multiline
-              style={styles.textAreaInput}
-            />
-          </View>
-
-          <Pressable onPress={onSave} style={styles.saveBtn}>
-            <Text style={styles.saveBtnText}>Save</Text>
+          <Pressable
+            onPress={onSave}
+            style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveBtnText}>Save Budget</Text>
+            )}
           </Pressable>
         </View>
 
@@ -182,10 +217,7 @@ export default function BudgetCategoryFormScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#FFFFFF" },
-  content: { 
-    //paddingHorizontal: 18, paddingBottom: 22 
-    flexGrow: 1,
-  },
+  content: { flexGrow: 1 },
 
   header: {
     marginTop: 6,
@@ -205,7 +237,6 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     borderWidth: 1,
   },
-  headerBtnText: { fontSize: 18, fontWeight: "900", color: "#111827" },
   headerTitle: { fontSize: 18, fontWeight: "900", color: "#111827" },
 
   formCard: {
@@ -217,7 +248,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  label: { fontSize: 14, fontWeight: "900", color: "#111827", marginBottom: 8 },
+  label: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#111827",
+    marginBottom: 8,
+  },
 
   inputRow: {
     height: 46,
@@ -230,42 +266,17 @@ const styles = StyleSheet.create({
     ...CARD_SHADOW,
   },
   inputText: { fontSize: 14, fontWeight: "800", color: "#111827", flex: 1 },
-  placeholder: { color: "#9CA3AF" },
-  trailing: {
-    marginLeft: 10,
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#111827",
-  },
 
-  dropdown: {
-    marginTop: 10,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    paddingVertical: 6,
-    ...CARD_SHADOW,
-  },
-  dropdownItem: { paddingHorizontal: 14, paddingVertical: 12 },
-  dropdownText: { fontSize: 14, fontWeight: "800", color: "#111827" },
-
-  textArea: {
-    marginTop: 8,
-    height: 170,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    padding: 12,
-    ...CARD_SHADOW,
-  },
-  textAreaInput: {
-    flex: 1,
-    fontSize: 14,
+  hint: {
+    marginTop: 12,
+    fontSize: 13,
     fontWeight: "800",
-    color: "#111827",
-    textAlignVertical: "top",
+    color: "#6B7280",
+    textAlign: "center",
   },
 
   saveBtn: {
-    marginTop: 18,
+    marginTop: 24,
     alignSelf: "center",
     width: "60%",
     height: 50,
