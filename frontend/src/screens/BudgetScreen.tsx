@@ -66,6 +66,7 @@ function CategoryTile({
 }
 
 function MoreTile({ onPress }: { onPress?: () => void }) {
+  return null;
   return (
     <Pressable onPress={onPress} style={styles.catTile}>
       <View style={[styles.catIconWrap, styles.moreIconWrap]}>
