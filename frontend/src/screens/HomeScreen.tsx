@@ -18,6 +18,7 @@ import type { RootStackParamList } from "../navigation/types";
 import { getTransactions, Transaction } from "../services/transactions";
 import { getTokens } from "../services/tokenStorage";
 import { showError } from "../utils/toast";
+import { NotificationModal } from "../components/NotificationModal";
 
 function money(n: number) {
   return new Intl.NumberFormat("en-US", {
@@ -85,6 +86,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const loadData = async () => {
     try {
@@ -200,13 +202,13 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.h1}>Hi, Welcome Back</Text>
-          <Pressable style={styles.bell}>
+          <Pressable
+            style={styles.bell}
+            onPress={() => setShowNotifications(true)}
+          >
             <Image
               source={require("../../assets/noti.png")}
-              style={{
-                width: 20,
-                height: 20,
-              }}
+              style={{ width: 20, height: 20 }}
             />
           </Pressable>
         </View>
@@ -287,6 +289,10 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
+      <NotificationModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }

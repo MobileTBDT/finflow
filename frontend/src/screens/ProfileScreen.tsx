@@ -9,11 +9,13 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
+import { MaterialIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 
 import { getProfile, User } from "../services/users";
 import { getTransactions } from "../services/transactions";
@@ -26,7 +28,10 @@ const DEFAULT_AVATAR =
 type StatCard = {
   label: string;
   value: string;
-  icon: string;
+  iconName: string;
+  iconFamily: "MaterialIcons" | "Ionicons" | "FontAwesome5";
+  iconColor: string;
+  bgColor: string;
 };
 
 function money(n: number) {
@@ -37,28 +42,71 @@ function money(n: number) {
 }
 
 function SettingRow({
-  icon,
+  iconName,
+  iconFamily = "MaterialIcons",
   label,
   value,
   onPress,
 }: {
-  icon: any;
+  iconName: string;
+  iconFamily?: "MaterialIcons" | "Ionicons";
   label: string;
   value?: string;
   onPress: () => void;
 }) {
+  const IconComponent = iconFamily === "Ionicons" ? Ionicons : MaterialIcons;
+
   return (
     <Pressable onPress={onPress} style={styles.settingRow}>
       <View style={styles.settingLeft}>
-        <Image source={icon} style={styles.settingIcon} resizeMode="contain" />
+        <View style={styles.settingIconWrap}>
+          <IconComponent name={iconName as any} size={20} color="#111827" />
+        </View>
         <Text style={styles.settingLabel}>{label}</Text>
       </View>
 
       <View style={styles.settingRight}>
         {value ? <Text style={styles.settingValue}>{value}</Text> : null}
-        <Text style={styles.settingArrow}>›</Text>
+        <MaterialIcons name="chevron-right" size={24} color="#9CA3AF" />
       </View>
     </Pressable>
+  );
+}
+
+function NotificationModal({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalIconWrap}>
+            <Ionicons
+              name="notifications-off-outline"
+              size={48}
+              color="#9CA3AF"
+            />
+          </View>
+          <Text style={styles.modalTitle}>No Notifications</Text>
+          <Text style={styles.modalText}>
+            You don't have any notifications yet.
+          </Text>
+
+          <Pressable onPress={onClose} style={styles.modalBtn}>
+            <Text style={styles.modalBtnText}>Got it</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -68,6 +116,7 @@ export default function ProfileScreen() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState({
@@ -142,17 +191,26 @@ export default function ProfileScreen() {
     {
       label: "Transactions",
       value: String(stats.totalTransactions),
-      icon: "📊",
+      iconName: "swap-horizontal",
+      iconFamily: "Ionicons",
+      iconColor: "#3B82F6",
+      bgColor: "#DBEAFE",
     },
     {
       label: "Total Income",
       value: `$${money(stats.totalIncome)}`,
-      icon: "💰",
+      iconName: "trending-up",
+      iconFamily: "Ionicons",
+      iconColor: "#10B981",
+      bgColor: "#D1FAE5",
     },
     {
       label: "Total Expense",
       value: `$${money(stats.totalExpense)}`,
-      icon: "💸",
+      iconName: "trending-down",
+      iconFamily: "Ionicons",
+      iconColor: "#EF4444",
+      bgColor: "#FEE2E2",
     },
   ];
 
@@ -184,32 +242,65 @@ export default function ProfileScreen() {
 
         {/* User Card */}
         <View style={styles.userCard}>
-          <Image
-            source={{ uri: user?.image || DEFAULT_AVATAR }}
-            style={styles.avatar}
-          />
+          <View style={styles.avatarWrap}>
+            <Image
+              source={{ uri: user?.image || DEFAULT_AVATAR }}
+              style={styles.avatar}
+            />
+            <Pressable
+              style={styles.avatarEdit}
+              onPress={() => navigation.navigate("EditProfile" as any)}
+            >
+              <MaterialIcons name="edit" size={16} color="#FFFFFF" />
+            </Pressable>
+          </View>
+
           <Text style={styles.fullname}>{user?.fullname || "User"}</Text>
           <Text style={styles.email}>{user?.email || ""}</Text>
 
           <Pressable
-            onPress={() => {
-              /* TODO: Navigate to EditProfile */
-            }}
+            onPress={() => navigation.navigate("EditProfile" as any)}
             style={styles.editBtn}
           >
+            <MaterialIcons
+              name="edit"
+              size={18}
+              color="#FFFFFF"
+              style={{ marginRight: 6 }}
+            />
             <Text style={styles.editBtnText}>Edit Profile</Text>
           </Pressable>
         </View>
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          {statCards.map((stat, idx) => (
-            <View key={idx} style={styles.statCard}>
-              <Text style={styles.statIcon}>{stat.icon}</Text>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
+          {statCards.map((stat, idx) => {
+            const IconComponent =
+              stat.iconFamily === "Ionicons"
+                ? Ionicons
+                : stat.iconFamily === "FontAwesome5"
+                ? FontAwesome5
+                : MaterialIcons;
+
+            return (
+              <View key={idx} style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconWrap,
+                    { backgroundColor: stat.bgColor },
+                  ]}
+                >
+                  <IconComponent
+                    name={stat.iconName as any}
+                    size={24}
+                    color={stat.iconColor}
+                  />
+                </View>
+                <Text style={styles.statValue}>{stat.value}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+              </View>
+            );
+          })}
         </View>
 
         {/* Settings */}
@@ -218,44 +309,52 @@ export default function ProfileScreen() {
 
           <View style={styles.settingsList}>
             <SettingRow
-              icon={require("../../assets/avatar-default.png")}
+              iconName="person"
               label="Account"
               value={user?.username}
-              onPress={() => {
-                /* TODO */
-              }}
+              onPress={() => navigation.navigate("EditProfile" as any)}
             />
 
             <SettingRow
-              icon={require("../../assets/noti.png")}
+              iconName="notifications"
+              iconFamily="Ionicons"
               label="Notifications"
-              onPress={() => {
-                /* TODO */
-              }}
+              onPress={() => setShowNotifications(true)}
             />
 
             <SettingRow
-              icon={require("../../assets/calendar.png")}
+              iconName="attach-money"
               label="Currency"
               value="USD"
               onPress={() => {
-                /* TODO */
+                showSuccess("Coming soon!");
               }}
             />
 
             <SettingRow
-              icon={require("../../assets/note.png")}
+              iconName="lock"
+              iconFamily="Ionicons"
+              label="Change Password"
+              onPress={() => {
+                showSuccess("Coming soon!");
+              }}
+            />
+
+            <SettingRow
+              iconName="shield"
+              iconFamily="Ionicons"
               label="Privacy Policy"
               onPress={() => {
-                /* TODO */
+                showSuccess("Coming soon!");
               }}
             />
 
             <SettingRow
-              icon={require("../../assets/food.png")}
+              iconName="information-circle"
+              iconFamily="Ionicons"
               label="About"
               onPress={() => {
-                /* TODO */
+                showSuccess("FinFlow v1.0.0");
               }}
             />
           </View>
@@ -263,11 +362,23 @@ export default function ProfileScreen() {
 
         {/* Logout */}
         <Pressable onPress={handleLogout} style={styles.logoutBtn}>
+          <Ionicons
+            name="log-out-outline"
+            size={20}
+            color="#FFFFFF"
+            style={{ marginRight: 8 }}
+          />
           <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
 
         <View style={{ height: 18 }} />
       </ScrollView>
+
+      {/* Notification Modal */}
+      <NotificationModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -301,12 +412,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...CARD_SHADOW,
   },
+  avatarWrap: {
+    position: "relative",
+  },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
     borderColor: "#E5E7EB",
+  },
+  avatarEdit: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#111111",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
   },
   fullname: {
     marginTop: 12,
@@ -326,6 +453,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     backgroundColor: "#111111",
+    flexDirection: "row",
+    alignItems: "center",
   },
   editBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
 
@@ -342,7 +471,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...CARD_SHADOW,
   },
-  statIcon: { fontSize: 28 },
+  statIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   statValue: {
     marginTop: 8,
     fontSize: 16,
@@ -382,11 +517,17 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F3F4F6",
   },
   settingLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  settingIcon: { width: 24, height: 24 },
+  settingIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   settingLabel: { fontSize: 15, fontWeight: "800", color: "#111827" },
   settingRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   settingValue: { fontSize: 14, fontWeight: "800", color: "#6B7280" },
-  settingArrow: { fontSize: 20, fontWeight: "900", color: "#9CA3AF" },
 
   logoutBtn: {
     marginTop: 20,
@@ -397,7 +538,61 @@ const styles = StyleSheet.create({
     backgroundColor: "#EF4444",
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
     ...CARD_SHADOW,
   },
   logoutText: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 32,
+    alignItems: "center",
+    width: "100%",
+    maxWidth: 340,
+    ...CARD_SHADOW,
+  },
+  modalIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  modalText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  modalBtn: {
+    width: "100%",
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: "#111111",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "900",
+  },
 });

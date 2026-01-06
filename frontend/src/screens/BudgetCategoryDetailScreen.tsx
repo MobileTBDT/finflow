@@ -24,6 +24,7 @@ import { getTransactions, Transaction } from "../services/transactions";
 import { getBudgets, Budget } from "../services/budgets";
 import { getTokens } from "../services/tokenStorage";
 import { showError } from "../utils/toast";
+import { NotificationModal } from "../components/NotificationModal";
 
 type TxGroup = {
   key: string;
@@ -110,6 +111,8 @@ export default function BudgetCategoryDetailScreen() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Map display category label → backend category name
   const categoryNameMap: Record<string, string[]> = {
@@ -277,7 +280,10 @@ export default function BudgetCategoryDetailScreen() {
 
           <Text style={styles.headerTitle}>{title}</Text>
 
-          <Pressable style={styles.headerBtn}>
+          <Pressable
+            style={styles.headerBtn}
+            onPress={() => setShowNotifications(true)}
+          >
             <Image
               source={require("../../assets/noti.png")}
               style={{ width: 20, height: 20 }}
@@ -387,6 +393,10 @@ export default function BudgetCategoryDetailScreen() {
 
         <View style={{ height: 18 }} />
       </ScrollView>
+      <NotificationModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }

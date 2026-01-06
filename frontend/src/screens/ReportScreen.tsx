@@ -22,6 +22,7 @@ import { getTransactions, Transaction } from "../services/transactions";
 import { getBudgets, Budget } from "../services/budgets";
 import { getTokens } from "../services/tokenStorage";
 import { showError } from "../utils/toast";
+import { NotificationModal } from "../components/NotificationModal";
 
 if (
   Platform.OS === "android" &&
@@ -350,6 +351,8 @@ export default function ReportScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
 
+  const [showNotifications, setShowNotifications] = useState(false);
+
   const loadData = async () => {
     try {
       const tokens = await getTokens();
@@ -572,7 +575,10 @@ export default function ReportScreen() {
 
           <Text style={styles.headerTitle}>Report</Text>
 
-          <Pressable style={styles.headerBtn}>
+          <Pressable
+            style={styles.headerBtn}
+            onPress={() => setShowNotifications(true)}
+          >
             <Image
               source={require("../../assets/noti.png")}
               style={{ width: 20, height: 20 }}
@@ -651,6 +657,10 @@ export default function ReportScreen() {
 
         <View style={{ height: 18 }} />
       </ScrollView>
+      <NotificationModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }

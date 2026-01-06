@@ -20,6 +20,7 @@ import { createOrUpdateBudget } from "../services/budgets";
 import { getCategories, Category } from "../services/transactions";
 import { getTokens } from "../services/tokenStorage";
 import { showSuccess, showError } from "../utils/toast";
+import { NotificationModal } from "../components/NotificationModal";
 
 const CARD_SHADOW = Platform.select({
   ios: {
@@ -55,6 +56,7 @@ export default function BudgetCategoryFormScreen() {
 
   const [backendCategories, setBackendCategories] = useState<Category[]>([]);
   const [amount, setAmount] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Map display category label → backend category name
   const categoryNameMap: Record<string, string[]> = {
@@ -170,7 +172,10 @@ export default function BudgetCategoryFormScreen() {
 
           <Text style={styles.headerTitle}>{title}</Text>
 
-          <Pressable style={styles.headerBtn}>
+          <Pressable
+            style={styles.headerBtn}
+            onPress={() => setShowNotifications(true)}
+          >
             <Image
               source={require("../../assets/noti.png")}
               style={{ width: 20, height: 20 }}
@@ -211,6 +216,10 @@ export default function BudgetCategoryFormScreen() {
 
         <View style={{ height: 18 }} />
       </ScrollView>
+      <NotificationModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }

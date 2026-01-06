@@ -7,11 +7,12 @@ export type RootStackParamList = {
   AddTransaction: undefined; //+
 
   // màn hình detail của Budget Category
-  BudgetCategoryDetail: { 
+  BudgetCategoryDetail: {
     categoryId: string;
     categoryMeta?: any;
   };
   BudgetCategoryForm: { categoryId: string };
+  EditProfile: undefined;
 };
 
 export type MainTabParamList = {

@@ -22,6 +22,7 @@ import { getTransactions, Transaction } from "../services/transactions";
 import { getBudgets, createOrUpdateBudget, Budget } from "../services/budgets";
 import { getTokens } from "../services/tokenStorage";
 import { showSuccess, showError } from "../utils/toast";
+import { NotificationModal } from "../components/NotificationModal";
 
 type Category = {
   id: string;
@@ -90,7 +91,9 @@ export default function BudgetScreen() {
   const [newCatName, setNewCatName] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [draftBudget, setDraftBudget] = useState<string>("20000");
+  const [draftBudget, setDraftBudget] = useState<string>("0");
+
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const loadData = async () => {
     try {
@@ -252,7 +255,10 @@ export default function BudgetScreen() {
 
           <Text style={styles.headerTitle}>Categories</Text>
 
-          <Pressable style={styles.headerBtn}>
+          <Pressable
+            style={styles.headerBtn}
+            onPress={() => setShowNotifications(true)}
+          >
             <Image
               source={require("../../assets/noti.png")}
               style={{ width: 20, height: 20 }}
@@ -424,6 +430,10 @@ export default function BudgetScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      <NotificationModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }
