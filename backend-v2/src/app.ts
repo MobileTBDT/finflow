@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.routes";
+import transactionsRoutes from "./routes/transactions.routes";
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(
 app.use(express.json());
 
 app.use("/auth", authRoutes);
+app.use("/transactions", transactionsRoutes);
 
 app.get("/", (req, res) => {
   res.json({
@@ -24,6 +26,8 @@ app.get("/", (req, res) => {
     endpoints: {
       register: "POST /auth/register",
       login: "POST /auth/login",
+      transactions: "GET /transactions (protected)",
+      createTransaction: "POST /transactions (protected)",
     },
   });
 });
