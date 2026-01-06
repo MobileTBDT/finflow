@@ -58,3 +58,24 @@ export async function apiGet<TResponse>(
 
   return data as TResponse;
 }
+
+export async function apiDelete(path: string, token?: string): Promise<void> {
+  const url = `${API_BASE_URL}${path}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+    const message =
+      data?.message?.toString?.() ||
+      data?.error?.toString?.() ||
+      `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+}

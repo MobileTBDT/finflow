@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Image,
   Modal,
@@ -9,13 +9,19 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
 
 import { BUDGET_CATEGORIES } from "../constants/budgetCategories";
+import { getTransactions, Transaction } from "../services/transactions";
+import { getBudgets, createOrUpdateBudget, Budget } from "../services/budgets";
+import { getTokens } from "../services/tokenStorage";
+import { showSuccess, showError } from "../utils/toast";
 
 type Category = {
   id: string;
@@ -30,6 +36,13 @@ function money(n: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function getCurrentMonth() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 function CategoryTile({
@@ -63,72 +76,177 @@ function MoreTile({ onPress }: { onPress?: () => void }) {
 }
 
 export default function BudgetScreen() {
-  const [categories, setCategories] = useState<Category[]>(BUDGET_CATEGORIES);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  const [categories, setCategories] = useState<Category[]>(BUDGET_CATEGORIES);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [draftBudget, setDraftBudget] = useState<string>("20000");
+
+  const loadData = async () => {
+    try {
+      const tokens = await getTokens();
+      if (!tokens?.accessToken) {
+        navigation.replace("Login");
+        return;
+      }
+
+      const currentMonth = getCurrentMonth();
+      const [txs, buds] = await Promise.all([
+        getTransactions(tokens.accessToken),
+        getBudgets(tokens.accessToken, currentMonth),
+      ]);
+
+      setTransactions(txs);
+      setBudgets(buds);
+    } catch (err: any) {
+      showError(err.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!loading) {
+        loadData();
+      }
+    }, [loading])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  // Calculate stats (tháng hiện tại)
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const thisMonthTxs = transactions.filter((tx) => {
+    const d = new Date(tx.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+
+  const totalIncome = thisMonthTxs
+    .filter((tx) => tx.category.type === "INCOME")
+    .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+  const totalExpense = thisMonthTxs
+    .filter((tx) => tx.category.type === "EXPENSE")
+    .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+  // Total budget (sum của tất cả budgets)
+  const totalBudget = budgets.reduce((sum, b) => sum + Number(b.amount), 0);
+
+  const percent = useMemo(() => {
+    if (totalBudget <= 0) return 0;
+    return Math.max(
+      0,
+      Math.min(100, Math.round((totalExpense / totalBudget) * 100))
+    );
+  }, [totalExpense, totalBudget]);
+
+  const openEdit = () => {
+    setDraftBudget(String(totalBudget));
+    setModalOpen(true);
+  };
+
+  const saveBudget = async () => {
+    try {
+      const cleaned = draftBudget.replace(/[^\d.]/g, "");
+      const amount = Number(cleaned);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        showError("Please enter a valid amount");
+        return;
+      }
+
+      const tokens = await getTokens();
+      if (!tokens?.accessToken) {
+        navigation.replace("Login");
+        return;
+      }
+
+      // Tạo budget chung cho category đầu tiên (hoặc logic khác)
+      // Ở đây mình dùng Food category làm default
+      const foodCat = budgets.find((b) => b.category.name === "Food & Dining");
+      const categoryId = foodCat?.categoryId || budgets[0]?.categoryId;
+
+      if (!categoryId) {
+        showError("No category found to set budget");
+        return;
+      }
+
+      await createOrUpdateBudget(
+        { categoryId, amount, month: getCurrentMonth() },
+        tokens.accessToken
+      );
+
+      showSuccess("Budget updated successfully!");
+      setModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      showError(err.message || "Failed to update budget");
+    }
+  };
 
   const handleAddCategory = () => {
     if (newCatName.trim() === "") return;
 
-    const newId = `new-cat-${Date.now()}`; 
+    const newId = `new-cat-${Date.now()}`;
     const newCategory: Category = {
       id: newId,
       label: newCatName,
-      image: require("../../assets/avatar-default.png"), 
+      image: require("../../assets/avatar-default.png"),
     };
 
-    setCategories([...categories, newCategory]); 
+    setCategories([...categories, newCategory]);
     setNewCatName("");
     setIsAddModalOpen(false);
   };
 
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [totalIncome] = useState<number>(7783);
-  const [totalExpense] = useState<number>(1187.4);
-
-  const [budget, setBudget] = useState<number>(20000);
-  const percent = useMemo(() => {
-    if (budget <= 0) return 0;
-    return Math.max(
-      0,
-      Math.min(100, Math.round((totalExpense / budget) * 100))
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator size="large" color="#111827" />
+        </View>
+      </SafeAreaView>
     );
-  }, [totalExpense, budget]);
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [draftBudget, setDraftBudget] = useState<string>(String(budget));
-
-  const openEdit = () => {
-    setDraftBudget(String(budget));
-    setModalOpen(true);
-  };
-
-  const saveBudget = () => {
-    const cleaned = draftBudget.replace(/[^\d.]/g, "");
-    const next = Number(cleaned);
-    if (Number.isFinite(next) && next > 0) setBudget(next);
-    setModalOpen(false);
-  };
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
-          <Pressable 
-            onPress={() => navigation.goBack()}
-          >
+          <Pressable onPress={() => navigation.goBack()}>
             <Image
               source={require("../../assets/bring back.png")}
-              style={{
-                width: 25,
-                height: 20,
-              }}
+              style={{ width: 25, height: 20 }}
             />
           </Pressable>
 
@@ -137,10 +255,7 @@ export default function BudgetScreen() {
           <Pressable style={styles.headerBtn}>
             <Image
               source={require("../../assets/noti.png")}
-              style={{
-                width: 20,
-                height: 20,
-              }}
+              style={{ width: 20, height: 20 }}
             />
           </Pressable>
         </View>
@@ -149,10 +264,10 @@ export default function BudgetScreen() {
         <View style={styles.totalsCard}>
           <View style={styles.totalBox}>
             <View style={styles.totalItemRow}>
-              <Image 
-                source={require("../../assets/total_income.png")} 
-                style={styles.totalImg} 
-                resizeMode="contain" 
+              <Image
+                source={require("../../assets/total_income.png")}
+                style={styles.totalImg}
+                resizeMode="contain"
               />
               <View style={styles.totalTextGroup}>
                 <Text style={styles.totalTitle}>Total Income</Text>
@@ -167,10 +282,10 @@ export default function BudgetScreen() {
 
           <View style={styles.totalBox}>
             <View style={styles.totalItemRow}>
-              <Image 
-                source={require("../../assets/total_expense.png")} 
-                style={styles.totalImg} 
-                resizeMode="contain" 
+              <Image
+                source={require("../../assets/total_expense.png")}
+                style={styles.totalImg}
+                resizeMode="contain"
               />
               <View style={styles.totalTextGroup}>
                 <Text style={styles.totalTitle}>Total Expense</Text>
@@ -186,19 +301,23 @@ export default function BudgetScreen() {
         <View style={styles.progressCard}>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${percent}%` }]} />
-            
+
             <View style={styles.progressLeftPill}>
               <Text style={styles.progressLeftText}>{percent}%</Text>
             </View>
 
-            <Text style={styles.progressRightInside}>${money(budget)}</Text>
+            <Text style={styles.progressRightInside}>
+              ${money(totalBudget)}
+            </Text>
           </View>
 
           <View style={styles.goodRow}>
             <View style={styles.checkBox}>
-                <Text style={styles.checkText}>✓</Text>
+              <Text style={styles.checkText}>✓</Text>
             </View>
-            <Text style={styles.goodText}>{percent}% Of Your Expenses, Looks Good.</Text>
+            <Text style={styles.goodText}>
+              {percent}% Of Your Expenses, Looks Good.
+            </Text>
           </View>
         </View>
 
@@ -212,12 +331,12 @@ export default function BudgetScreen() {
                 onPress={() =>
                   navigation.navigate("BudgetCategoryDetail", {
                     categoryId: c.id,
-                    categoryMeta: c, 
+                    categoryMeta: c,
                   })
                 }
               />
             ))}
-            
+
             <MoreTile onPress={() => setIsAddModalOpen(true)} />
           </View>
 
@@ -309,6 +428,7 @@ export default function BudgetScreen() {
   );
 }
 
+// ...existing styles...
 const CARD_SHADOW = Platform.select({
   ios: {
     shadowColor: "#000",
@@ -321,14 +441,8 @@ const CARD_SHADOW = Platform.select({
 });
 
 const styles = StyleSheet.create({
-  safe: { 
-    flex: 1, 
-    backgroundColor: "#FFFFFF" 
-  },
-  content: { //paddingHorizontal: 18, paddingBottom: 22 
-    flexGrow: 1,
-  },
-
+  safe: { flex: 1, backgroundColor: "#FFFFFF" },
+  content: { flexGrow: 1 },
   header: {
     marginTop: 6,
     marginLeft: 30,
@@ -347,54 +461,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerBtnText: { fontSize: 18, fontWeight: "900", color: "#111827" },
   headerTitle: { fontSize: 18, fontWeight: "900", color: "#111827" },
-
   totalsCard: {
     marginTop: 14,
-    //backgroundColor: "#FFFFFF",
-    //borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    //...CARD_SHADOW,
   },
   totalsDivider: { width: 1, height: 44, backgroundColor: "#E5E7EB" },
   totalBox: { flex: 1, alignItems: "center" },
-  totalRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  totalIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  totalIconText: { fontSize: 14, fontWeight: "900", color: "#111827" },
   totalTitle: { fontSize: 12, fontWeight: "800", color: "#6B7280" },
   totalValue: { marginTop: 6, fontSize: 18, fontWeight: "900" },
-  totalImg: {
-    width: 30,
-    height: 30,
-  },
-
-  totalItemRow: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-  },
-
-  totalTextGroup: {
-    marginLeft: 8, 
-  },
-
+  totalImg: { width: 30, height: 30 },
+  totalItemRow: { flexDirection: "row", alignItems: "center" },
+  totalTextGroup: { marginLeft: 8 },
   progressCard: {
     marginTop: 14,
-    //backgroundColor: "#FFFFFF",
-    //borderRadius: 18,
     paddingBottom: 30,
     paddingHorizontal: 30,
-    //...CARD_SHADOW,
   },
   progressTrack: {
     height: 34,
@@ -416,20 +501,17 @@ const styles = StyleSheet.create({
     height: 26,
     paddingHorizontal: 10,
     borderRadius: 999,
-    //backgroundColor: "#111111",
     alignItems: "center",
     justifyContent: "center",
   },
   progressLeftText: { color: "#FFFFFF", fontWeight: "900", fontSize: 12 },
-
-  progressMetaRow: {
+  goodRow: {
     marginTop: 10,
+    marginLeft: 10,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
   },
-  checkRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
   checkBox: {
     width: 18,
     height: 18,
@@ -451,21 +533,19 @@ const styles = StyleSheet.create({
     color: "#111827",
     flexShrink: 1,
   },
-  budgetText: { fontSize: 13, fontWeight: "900", color: "#111827" },
-
   gridCard: {
-    backgroundColor: "#F1F3F7", 
-    borderTopLeftRadius: 60, 
-    borderTopRightRadius: 60,   
+    backgroundColor: "#F1F3F7",
+    borderTopLeftRadius: 60,
+    borderTopRightRadius: 60,
     padding: 30,
     flex: 1,
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "flex-start", 
-    rowGap: 20,                   
-    columnGap: '3.33%',           
+    justifyContent: "flex-start",
+    rowGap: 20,
+    columnGap: "3.33%",
   },
   catTile: { width: "22.5%", alignItems: "center" },
   catIconWrap: {
@@ -480,7 +560,6 @@ const styles = StyleSheet.create({
   },
   catImg: { width: 40, height: 40 },
   catLabel: { marginTop: 8, fontSize: 12, fontWeight: "800", color: "#6B7280" },
-
   moreIconWrap: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -492,7 +571,6 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginTop: -2,
   },
-
   editBtn: {
     marginTop: 18,
     alignSelf: "center",
@@ -504,8 +582,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   editBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
-
-  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.35)",
@@ -539,7 +615,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalInput: { fontSize: 14, fontWeight: "800", color: "#111827" },
-
   modalSave: {
     marginTop: 14,
     marginLeft: 30,
@@ -551,7 +626,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalSaveText: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
-
   modalCancel: {
     marginTop: 10,
     marginLeft: 30,
@@ -563,21 +637,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalCancelText: { color: "#111827", fontSize: 16, fontWeight: "900" },
-
-
   progressRightInside: {
     position: "absolute",
     right: 15,
     fontSize: 12,
     fontWeight: "900",
     color: "#111827",
-    fontStyle: 'italic'
-  },
-  goodRow: {
-    marginTop: 10,
-    marginLeft: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    fontStyle: "italic",
   },
 });

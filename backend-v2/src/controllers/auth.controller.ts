@@ -1,39 +1,36 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { signAccessToken, signRefreshToken } from "../utils/jwt.utils";
+import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
+const JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET || "your-refresh-secret-change-this";
 
 export async function register(req: Request, res: Response) {
   try {
     const { username, email, password, fullname, phone, dateofbirth, image } =
       req.body;
 
-    // Validate required
     if (!username || !email || !password || !fullname) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Check existing
-    const existing = await prisma.user.findFirst({
+    const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ username }, { email }, ...(phone ? [{ phone }] : [])],
       },
     });
 
-    if (existing) {
-      if (existing.username === username)
-        return res.status(400).json({ message: "Username already exists" });
-      if (existing.email === email)
-        return res.status(400).json({ message: "Email already exists" });
-      if (existing.phone === phone)
-        return res.status(400).json({ message: "Phone already exists" });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         username,
         email,
@@ -45,24 +42,36 @@ export async function register(req: Request, res: Response) {
       },
     });
 
-    const accessToken = signAccessToken(newUser.id, newUser.username);
-    const refreshToken = signRefreshToken(newUser.id, newUser.username);
+    // Create default categories
+    await createDefaultCategories(user.id);
 
-    const rtHash = await bcrypt.hash(refreshToken, 10);
-    await prisma.user.update({
-      where: { id: newUser.id },
-      data: { refreshToken: rtHash },
+    const accessToken = jwt.sign({ sub: user.id, username }, JWT_SECRET, {
+      expiresIn: "7d",
     });
 
-    // Create default categories
-    await createDefaultCategories(newUser.id);
+    const refreshToken = jwt.sign(
+      { sub: user.id, username },
+      JWT_REFRESH_SECRET,
+      { expiresIn: "30d" }
+    );
 
-    const { password: _, refreshToken: __, ...userInfo } = newUser;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken },
+    });
 
     res.status(201).json({
       access_token: accessToken,
       refresh_token: refreshToken,
-      info: userInfo,
+      info: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        fullname: user.fullname,
+        phone: user.phone,
+        dateofbirth: user.dateofbirth,
+        image: user.image,
+      },
     });
   } catch (err: any) {
     console.error("Register error:", err);
@@ -72,43 +81,56 @@ export async function register(req: Request, res: Response) {
 
 export async function login(req: Request, res: Response) {
   try {
-    const { username: identifier, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!identifier || !password) {
+    if (!username || !password) {
       return res.status(400).json({ message: "Missing username or password" });
     }
 
     const user = await prisma.user.findFirst({
       where: {
-        OR: [
-          { username: identifier },
-          { email: identifier },
-          { phone: identifier },
-        ],
+        OR: [{ username }, { email: username }],
       },
     });
 
-    if (!user) return res.status(401).json({ message: "Invalid credentials" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
+    if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
+    }
 
-    const accessToken = signAccessToken(user.id, user.username);
-    const refreshToken = signRefreshToken(user.id, user.username);
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
 
-    const rtHash = await bcrypt.hash(refreshToken, 10);
+    const accessToken = jwt.sign(
+      { sub: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    const refreshToken = jwt.sign(
+      { sub: user.id, username: user.username },
+      JWT_REFRESH_SECRET,
+      { expiresIn: "30d" }
+    );
+
     await prisma.user.update({
       where: { id: user.id },
-      data: { refreshToken: rtHash },
+      data: { refreshToken },
     });
-
-    const { password: _, refreshToken: __, ...userInfo } = user;
 
     res.json({
       access_token: accessToken,
       refresh_token: refreshToken,
-      info: userInfo,
+      info: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        fullname: user.fullname,
+        phone: user.phone,
+        dateofbirth: user.dateofbirth,
+        image: user.image,
+      },
     });
   } catch (err: any) {
     console.error("Login error:", err);
@@ -116,20 +138,33 @@ export async function login(req: Request, res: Response) {
   }
 }
 
+// Tạo default categories khi user đăng ký
 async function createDefaultCategories(userId: number) {
-  const defaults = [
-    { name: "Food & Dining", type: "EXPENSE", icon: "🍔" },
-    { name: "Transportation", type: "EXPENSE", icon: "🚗" },
-    { name: "Shopping", type: "EXPENSE", icon: "🛍️" },
-    { name: "Entertainment", type: "EXPENSE", icon: "🎬" },
-    { name: "Bills & Utilities", type: "EXPENSE", icon: "💡" },
-    { name: "Healthcare", type: "EXPENSE", icon: "🏥" },
-    { name: "Salary", type: "INCOME", icon: "💰" },
-    { name: "Freelance", type: "INCOME", icon: "💼" },
-    { name: "Investment", type: "INCOME", icon: "📈" },
+  const defaultCategories = [
+    // EXPENSE categories
+    { name: "Food", type: "EXPENSE" as const, icon: "🍔" },
+    { name: "Grocery", type: "EXPENSE" as const, icon: "🛒" },
+    { name: "Transportation", type: "EXPENSE" as const, icon: "🚗" },
+    { name: "Utilities", type: "EXPENSE" as const, icon: "💡" },
+    { name: "Rent", type: "EXPENSE" as const, icon: "🏠" },
+    { name: "Personal", type: "EXPENSE" as const, icon: "👤" },
+    { name: "Health", type: "EXPENSE" as const, icon: "🏥" },
+    { name: "Sport", type: "EXPENSE" as const, icon: "⚽" },
+    { name: "Gift", type: "EXPENSE" as const, icon: "🎁" },
+    { name: "Saving", type: "EXPENSE" as const, icon: "💰" },
+    { name: "Travel", type: "EXPENSE" as const, icon: "✈️" },
+    { name: "Shopping", type: "EXPENSE" as const, icon: "🛍️" },
+
+    // INCOME categories
+    { name: "Salary", type: "INCOME" as const, icon: "💵" },
+    { name: "Freelance", type: "INCOME" as const, icon: "💼" },
+    { name: "Investment", type: "INCOME" as const, icon: "📈" },
   ];
 
   await prisma.category.createMany({
-    data: defaults.map((c) => ({ ...c, userId })),
+    data: defaultCategories.map((cat) => ({
+      ...cat,
+      userId,
+    })),
   });
 }
