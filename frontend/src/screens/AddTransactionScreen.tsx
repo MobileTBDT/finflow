@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Platform,
@@ -9,23 +9,30 @@ import {
   View,
   Image,
   ImageSourcePropType,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import * as Sentry from "@sentry/react-native";
+
+import {
+  createTransaction,
+  getCategories,
+  Category,
+} from "../services/transactions";
+import { getTokens } from "../services/tokenStorage";
+import { showSuccess, showError } from "../utils/toast";
 
 type TxType = "income" | "expense";
 type Panel = "keypad" | "note" | "calendar";
-type RepeatOption = "None" | "Every Day" | "Every Week" | "Every Month";
 
-type ExpenseCategory = {
+// UI Categories (hardcoded for display - CHỈ CHO EXPENSE)
+type DisplayCategory = {
   id: string;
   label: string;
-  icon?: string;
-  image?: ImageSourcePropType;
+  image: ImageSourcePropType;
 };
 
-const TOP_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+const TOP_EXPENSE_CATEGORIES: DisplayCategory[] = [
   {
     id: "food",
     label: "Food",
@@ -43,7 +50,7 @@ const TOP_EXPENSE_CATEGORIES: ExpenseCategory[] = [
   },
 ];
 
-const ALL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+const ALL_EXPENSE_CATEGORIES: DisplayCategory[] = [
   ...TOP_EXPENSE_CATEGORIES,
   {
     id: "utilities",
@@ -94,7 +101,7 @@ const ALL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
 
 function formatVnd(amountDigits: string) {
   const n = Number(amountDigits || "0");
-  const formatted = n.toLocaleString("vi-VN"); // 1.250.000
+  const formatted = n.toLocaleString("vi-VN");
   return `${formatted}đ`;
 }
 
@@ -107,6 +114,13 @@ function formatDateLabel(d: Date) {
   const month = d.toLocaleString("en-US", { month: "long" });
   const year = d.getFullYear();
   return `${day} ${month}, ${year}`;
+}
+
+function toISODate(d: Date) {
+  const y = d.getFullYear();
+  const m = pad2(d.getMonth() + 1);
+  const day = pad2(d.getDate());
+  return `${y}-${m}-${day}`;
 }
 
 function mondayIndex(jsDay: number) {
@@ -221,44 +235,6 @@ function Keypad({
           </Text>
         </Pressable>
       </View>
-
-      {/* sentry test */}
-      {/* TEMP: Sentry test (xong nhớ xoá) */}
-      <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-        <Pressable
-          onPress={async () => {
-            Sentry.captureMessage(
-              "FinFlow: Sentry manual test message",
-              "info"
-            );
-            await Sentry.flush();
-          }}
-          style={{ padding: 12, backgroundColor: "#111827", borderRadius: 12 }}
-        >
-          <Text style={{ color: "white", fontWeight: "800" }}>
-            Send Sentry test message
-          </Text>
-        </Pressable>
-
-        <View style={{ height: 10 }} />
-
-        <Pressable
-          onPress={async () => {
-            try {
-              throw new Error("FinFlow: Sentry manual test exception");
-            } catch (e) {
-              Sentry.captureException(e);
-              await Sentry.flush();
-            }
-          }}
-          style={{ padding: 12, backgroundColor: "#7F1D1D", borderRadius: 12 }}
-        >
-          <Text style={{ color: "white", fontWeight: "800" }}>
-            Send Sentry test exception
-          </Text>
-        </Pressable>
-      </View>
-      {/* end sentry test */}
     </View>
   );
 }
@@ -268,7 +244,7 @@ function CategoryPill({
   selected,
   onPress,
 }: {
-  category: ExpenseCategory;
+  category: DisplayCategory;
   selected: boolean;
   onPress: () => void;
 }) {
@@ -278,15 +254,11 @@ function CategoryPill({
       style={[styles.catItem, selected && styles.catItemActive]}
     >
       <View style={[styles.catIconWrap, selected && styles.catIconWrapActive]}>
-        {category.image ? (
-          <Image
-            source={category.image}
-            style={{ width: 28, height: 28 }}
-            resizeMode="contain"
-          />
-        ) : (
-          <Text style={styles.catIcon}>{category.icon}</Text>
-        )}
+        <Image
+          source={category.image}
+          style={{ width: 28, height: 28 }}
+          resizeMode="contain"
+        />
       </View>
       <Text
         style={[styles.catLabel, selected && styles.catLabelActive]}
@@ -301,31 +273,100 @@ function CategoryPill({
 export default function AddTransactionScreen() {
   const navigation = useNavigation();
 
-  const [txType, setTxType] = useState<TxType>("income");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [txType, setTxType] = useState<TxType>("expense");
   const [amountDigits, setAmountDigits] = useState<string>("0");
 
   const [note, setNote] = useState<string>("");
-  const [repeat, setRepeat] = useState<RepeatOption>("None");
-  const [repeatOpen, setRepeatOpen] = useState(false);
-
-  // keypad luôn hiện; chỉ ẩn khi note/calendar
   const [panel, setPanel] = useState<Panel>("keypad");
 
-  const [cursorMonth, setCursorMonth] = useState(() => ({ y: 2025, m: 10 }));
-  const [selectedDate, setSelectedDate] = useState<Date>(
-    () => new Date(2025, 10, 2)
-  );
+  const now = new Date();
+  const [cursorMonth, setCursorMonth] = useState(() => ({
+    y: now.getFullYear(),
+    m: now.getMonth(),
+  }));
+  const [selectedDate, setSelectedDate] = useState<Date>(now);
 
   const weeks = useMemo(
     () => buildCalendarMatrix(cursorMonth.y, cursorMonth.m),
     [cursorMonth]
   );
 
-  // Expense categories
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
-    TOP_EXPENSE_CATEGORIES[0]?.id ?? "food"
+  // Backend categories (chỉ dùng cho Expense)
+  const [backendCategories, setBackendCategories] = useState<Category[]>([]);
+  const [selectedDisplayCatId, setSelectedDisplayCatId] = useState<string>(
+    TOP_EXPENSE_CATEGORIES[0].id
   );
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+
+  // Load backend categories (silent, for mapping only)
+  useEffect(() => {
+    (async () => {
+      try {
+        const tokens = await getTokens();
+        if (!tokens?.accessToken) {
+          navigation.goBack();
+          return;
+        }
+
+        const cats = await getCategories(tokens.accessToken);
+        setBackendCategories(cats);
+      } catch (err: any) {
+        showError(err.message || "Failed to load categories");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Display categories (chỉ hiện khi txType === "expense")
+  const displayCategories = useMemo(() => {
+    return txType === "expense" ? ALL_EXPENSE_CATEGORIES : [];
+  }, [txType]);
+
+  const topCategories = useMemo(() => {
+    return txType === "expense" ? TOP_EXPENSE_CATEGORIES : [];
+  }, [txType]);
+
+  const selectedDisplayCat = useMemo(() => {
+    return displayCategories.find((c) => c.id === selectedDisplayCatId);
+  }, [displayCategories, selectedDisplayCatId]);
+
+  // Map display category → backend category ID (chỉ cho Expense)
+  const getBackendCategoryId = (displayLabel: string): number | null => {
+    const labelMap: Record<string, string[]> = {
+      Food: ["Food & Dining", "Food"],
+      Grocery: ["Groceries", "Grocery", "Shopping"],
+      Transportation: ["Transportation"],
+      Utilities: ["Bills & Utilities", "Utilities"],
+      Rent: ["Rent"],
+      Personal: ["Personal"],
+      Health: ["Healthcare", "Health"],
+      Sport: ["Sport"],
+      Gift: ["Gift"],
+      Saving: ["Saving"],
+      Travel: ["Travel"],
+      Shopping: ["Shopping"],
+    };
+
+    const possibleNames = labelMap[displayLabel] || [displayLabel];
+
+    const match = backendCategories.find(
+      (c) => c.type === "EXPENSE" && possibleNames.includes(c.name)
+    );
+
+    return match?.id || null;
+  };
+
+  // Get default Income category (Salary)
+  const getDefaultIncomeCategoryId = (): number | null => {
+    const salaryCategory = backendCategories.find(
+      (c) => c.type === "INCOME" && c.name === "Salary"
+    );
+    return salaryCategory?.id || null;
+  };
 
   const onDigit = (d: string) => {
     setAmountDigits((prev) => {
@@ -343,35 +384,97 @@ export default function AddTransactionScreen() {
   };
 
   const toggleNote = () => {
-    setRepeatOpen(false);
     setCategoryModalOpen(false);
     setPanel((p) => (p === "note" ? "keypad" : "note"));
   };
 
   const toggleCalendar = () => {
-    setRepeatOpen(false);
     setCategoryModalOpen(false);
     setPanel((p) => (p === "calendar" ? "keypad" : "calendar"));
   };
 
-  const onPressSave = () => {
-    // TODO: tích hợp API
-    // payload: { type: txType, amount: Number(amountDigits), date: selectedDate, note, repeat, categoryId: selectedCategoryId }
-    navigation.goBack();
+  const onPressSave = async () => {
+    if (saving) return;
+
+    try {
+      const amount = Number(amountDigits);
+      if (amount <= 0) {
+        showError("Please enter a valid amount");
+        return;
+      }
+
+      let categoryId: number | null = null;
+
+      if (txType === "expense") {
+        if (!selectedDisplayCat) {
+          showError("Please select a category");
+          return;
+        }
+        categoryId = getBackendCategoryId(selectedDisplayCat.label);
+        if (!categoryId) {
+          showError(
+            `Category "${selectedDisplayCat.label}" not found in database`
+          );
+          return;
+        }
+      } else {
+        // Income: dùng default Salary category
+        categoryId = getDefaultIncomeCategoryId();
+        if (!categoryId) {
+          showError("Income category not found in database");
+          return;
+        }
+      }
+
+      setSaving(true);
+
+      const tokens = await getTokens();
+      if (!tokens?.accessToken) {
+        navigation.goBack();
+        return;
+      }
+
+      await createTransaction(
+        {
+          amount,
+          date: toISODate(selectedDate),
+          note: note.trim() || undefined,
+          categoryId,
+        },
+        tokens.accessToken
+      );
+
+      showSuccess("Transaction added successfully!");
+      navigation.goBack();
+    } catch (err: any) {
+      showError(err.message || "Failed to create transaction");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onChangeType = (v: TxType) => {
     setTxType(v);
-    // giữ đúng cơ chế: keypad là mặc định khi đổi tab
     setPanel("keypad");
-    setRepeatOpen(false);
     setCategoryModalOpen(false);
+
+    // Reset category selection khi đổi sang Income
+    if (v === "expense") {
+      setSelectedDisplayCatId(TOP_EXPENSE_CATEGORIES[0].id);
+    }
   };
 
-  const selectedCategory = useMemo(
-    () => ALL_EXPENSE_CATEGORIES.find((c) => c.id === selectedCategoryId),
-    [selectedCategoryId]
-  );
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator size="large" color="#111827" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -392,49 +495,49 @@ export default function AddTransactionScreen() {
 
         <Text style={styles.amount}>{formatVnd(amountDigits)}</Text>
 
-        {/* Expense Category (chỉ hiện khi Expense) */}
-        {txType === "expense" ? (
+        {/* Category Pills - CHỈ HIỆN KHI EXPENSE */}
+        {txType === "expense" && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Expense Category</Text>
 
             <View style={styles.catRow}>
-              {TOP_EXPENSE_CATEGORIES.map((c) => (
+              {topCategories.map((c) => (
                 <CategoryPill
                   key={c.id}
                   category={c}
-                  selected={c.id === selectedCategoryId}
-                  onPress={() => setSelectedCategoryId(c.id)}
+                  selected={c.id === selectedDisplayCatId}
+                  onPress={() => setSelectedDisplayCatId(c.id)}
                 />
               ))}
 
-              <Pressable
-                onPress={() => {
-                  setRepeatOpen(false);
-                  setPanel("keypad");
-                  setCategoryModalOpen(true);
-                }}
-                style={styles.catMore}
-              >
-                <View style={styles.catMoreIconWrap}>
-                  <Text style={styles.catMoreIcon}>＋</Text>
-                </View>
-                <Text style={styles.catMoreLabel}>More</Text>
-              </Pressable>
+              {displayCategories.length > 3 ? (
+                <Pressable
+                  onPress={() => {
+                    setPanel("keypad");
+                    setCategoryModalOpen(true);
+                  }}
+                  style={styles.catMore}
+                >
+                  <View style={styles.catMoreIconWrap}>
+                    <Text style={styles.catMoreIcon}>＋</Text>
+                  </View>
+                  <Text style={styles.catMoreLabel}>More</Text>
+                </Pressable>
+              ) : null}
             </View>
 
-            {/* hiển thị category đã chọn */}
-            {selectedCategory ? (
+            {selectedDisplayCat ? (
               <Text style={styles.selectedHint}>
                 Selected:{" "}
                 <Text style={styles.selectedHintStrong}>
-                  {selectedCategory.label}
+                  {selectedDisplayCat.label}
                 </Text>
               </Text>
             ) : null}
           </View>
-        ) : null}
+        )}
 
-        {/* Note + Date cards */}
+        {/* Note + Date */}
         <View style={styles.row}>
           <Pressable
             onPress={toggleNote}
@@ -444,7 +547,9 @@ export default function AddTransactionScreen() {
               source={require("../../assets/note.png")}
               style={styles.inlineIcon}
             />
-            <Text style={styles.cardText}>Note...</Text>
+            <Text style={styles.cardText}>
+              {note ? note.slice(0, 20) + "..." : "Note..."}
+            </Text>
           </Pressable>
 
           <Pressable
@@ -460,63 +565,6 @@ export default function AddTransactionScreen() {
             </Text>
           </Pressable>
         </View>
-        {/* Repeat Frequency */}
-        {/* chỉ show khi ở income */}
-        {txType === "income" ? (
-          <View style={styles.repeatWrap}>
-            <Pressable
-              onPress={() => setRepeatOpen((v) => !v)}
-              style={styles.repeatRow}
-            >
-              <View style={styles.repeatLeftRow}>
-                <Image
-                  source={require("../../assets/repeat.png")}
-                  style={styles.inlineIcon}
-                />
-                <Text style={styles.repeatLeftText}>Repeat Frequency:</Text>
-              </View>
-
-              <Text style={styles.repeatRight}>{repeat}</Text>
-            </Pressable>
-
-            {repeatOpen ? (
-              <View style={styles.repeatDropdown}>
-                {(
-                  [
-                    "None",
-                    "Every Day",
-                    "Every Week",
-                    "Every Month",
-                  ] as RepeatOption[]
-                ).map((opt) => {
-                  const checked = repeat === opt;
-                  return (
-                    <Pressable
-                      key={opt}
-                      onPress={() => {
-                        setRepeat(opt);
-                        setRepeatOpen(false);
-                      }}
-                      style={styles.repeatItem}
-                    >
-                      <Text style={styles.repeatItemText}>
-                        {opt === "None" ? "Do Not Repeat" : opt}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.repeatCheck,
-                          checked && styles.repeatCheckOn,
-                        ]}
-                      >
-                        {checked ? "✓" : ""}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-          </View>
-        ) : null}
 
         {/* Dynamic area */}
         <View style={styles.dynamicArea}>
@@ -557,9 +605,7 @@ export default function AddTransactionScreen() {
                   <Text style={styles.monthPillText}>
                     {new Date(cursorMonth.y, cursorMonth.m, 1).toLocaleString(
                       "en-US",
-                      {
-                        month: "short",
-                      }
+                      { month: "short" }
                     )}
                   </Text>
                   <Text style={styles.monthPillCaret}>˅</Text>
@@ -635,64 +681,70 @@ export default function AddTransactionScreen() {
 
       {/* Save */}
       <View style={styles.bottom}>
-        <Pressable onPress={onPressSave} style={styles.saveBtn}>
-          <Text style={styles.saveText}>Save</Text>
+        <Pressable
+          onPress={onPressSave}
+          style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveText}>Save</Text>
+          )}
         </Pressable>
       </View>
 
-      {/* Modal: Choose Expense Category */}
-      <Modal
-        visible={categoryModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCategoryModalOpen(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setCategoryModalOpen(false)}
+      {/* Modal: All Categories - CHỈ CHO EXPENSE */}
+      {txType === "expense" && (
+        <Modal
+          visible={categoryModalOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCategoryModalOpen(false)}
         >
-          <Pressable style={styles.modalCard} onPress={() => {}}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose Expense Category</Text>
-              <Pressable
-                onPress={() => setCategoryModalOpen(false)}
-                style={styles.modalClose}
-                hitSlop={10}
-              >
-                <Text style={styles.modalCloseText}>×</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.modalGrid}>
-              {ALL_EXPENSE_CATEGORIES.map((c) => (
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setCategoryModalOpen(false)}
+          >
+            <Pressable style={styles.modalCard} onPress={() => {}}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Choose Expense Category</Text>
                 <Pressable
-                  key={c.id}
-                  onPress={() => {
-                    setSelectedCategoryId(c.id);
-                    setCategoryModalOpen(false);
-                  }}
-                  style={styles.modalItem}
+                  onPress={() => setCategoryModalOpen(false)}
+                  style={styles.modalClose}
+                  hitSlop={10}
                 >
-                  <View style={styles.modalIconWrap}>
-                    {c.image ? (
+                  <Text style={styles.modalCloseText}>×</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.modalGrid}>
+                {displayCategories.map((c) => (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => {
+                      setSelectedDisplayCatId(c.id);
+                      setCategoryModalOpen(false);
+                    }}
+                    style={styles.modalItem}
+                  >
+                    <View style={styles.modalIconWrap}>
                       <Image
                         source={c.image}
                         style={{ width: 40, height: 40 }}
                         resizeMode="contain"
                       />
-                    ) : (
-                      <Text style={styles.modalIcon}>{c.icon}</Text>
-                    )}
-                  </View>
-                  <Text style={styles.modalLabel} numberOfLines={1}>
-                    {c.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+                    </View>
+                    <Text style={styles.modalLabel} numberOfLines={1}>
+                      {c.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -710,14 +762,7 @@ const CARD_SHADOW = Platform.select({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F3F4F6" },
-
-  sheet: {
-    flex: 1,
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    paddingBottom: 96,
-  },
-
+  sheet: { flex: 1, paddingHorizontal: 18, paddingTop: 8, paddingBottom: 96 },
   header: {
     alignItems: "center",
     justifyContent: "center",
@@ -735,7 +780,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   closeText: { fontSize: 26, lineHeight: 26, color: "#111827" },
-
   segment: {
     alignSelf: "center",
     width: "92%",
@@ -754,7 +798,6 @@ const styles = StyleSheet.create({
   segmentBtnActive: { backgroundColor: "#FFFFFF" },
   segmentText: { fontSize: 14, fontWeight: "800", color: "#6B7280" },
   segmentTextActive: { color: "#111827" },
-
   amount: {
     marginTop: 30,
     fontSize: 50,
@@ -762,7 +805,6 @@ const styles = StyleSheet.create({
     color: "#0B3B35",
     textAlign: "center",
   },
-
   section: { marginTop: 22 },
   sectionTitle: {
     fontSize: 16,
@@ -770,17 +812,13 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 10,
   },
-
   catRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
     justifyContent: "center",
   },
-  catItem: {
-    width: 76,
-    alignItems: "center",
-  },
+  catItem: { width: 76, alignItems: "center" },
   catItemActive: {},
   catIconWrap: {
     width: 64,
@@ -803,7 +841,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   catLabelActive: { color: "#111827" },
-
   catMore: { width: 76, alignItems: "center" },
   catMoreIconWrap: {
     width: 64,
@@ -823,7 +860,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#6B7280",
   },
-
   selectedHint: {
     marginTop: 10,
     fontSize: 12,
@@ -831,7 +867,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
   selectedHintStrong: { color: "#111827", fontWeight: "900" },
-
   row: { marginTop: 18, flexDirection: "row", gap: 14 },
   card: {
     backgroundColor: "#FFFFFF",
@@ -850,49 +885,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   inlineIcon: { width: 16, height: 16, marginRight: 8 },
-
-  repeatWrap: { marginTop: 16 },
-  repeatRow: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    ...CARD_SHADOW,
-  },
-  repeatLeftRow: { flexDirection: "row", alignItems: "center" },
-  repeatLeftText: { fontSize: 14, fontWeight: "900", color: "#111827" },
-  repeatRight: { fontSize: 14, fontWeight: "900", color: "#111827" },
-
-  repeatDropdown: {
-    marginTop: 10,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    overflow: "hidden",
-    ...CARD_SHADOW,
-  },
-  repeatItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-  },
-  repeatItemText: { fontSize: 14, fontWeight: "800", color: "#111827" },
-  repeatCheck: {
-    width: 22,
-    textAlign: "right",
-    fontSize: 16,
-    color: "#10B981",
-  },
-  repeatCheckOn: { color: "#10B981" },
-
   dynamicArea: { marginTop: 16, flex: 1, justifyContent: "flex-start" },
-
   noteBox: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -909,7 +902,6 @@ const styles = StyleSheet.create({
     minHeight: 200,
     textAlignVertical: "top",
   },
-
   calendar: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -931,7 +923,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   navText: { fontSize: 22, fontWeight: "900", color: "#111827" },
-
   monthPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -945,7 +936,6 @@ const styles = StyleSheet.create({
   monthPillText: { fontSize: 16, fontWeight: "900", color: "#111827" },
   monthPillCaret: { fontSize: 14, fontWeight: "900", color: "#111827" },
   yearText: { fontSize: 20, fontWeight: "900", color: "#111827" },
-
   dowRow: { flexDirection: "row", paddingHorizontal: 2, marginBottom: 6 },
   dowText: {
     flex: 1,
@@ -953,7 +943,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontWeight: "800",
   },
-
   weekRow: { flexDirection: "row", gap: 6, marginTop: 6 },
   dayCell: {
     flex: 1,
@@ -970,7 +959,6 @@ const styles = StyleSheet.create({
   dayText: { fontSize: 14, fontWeight: "900", color: "#111827" },
   dayTextDisabled: { color: "#D1D5DB" },
   dayTextSelected: { color: "#FFFFFF" },
-
   keypad: { paddingTop: 8 },
   keypadGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   key: {
@@ -985,7 +973,6 @@ const styles = StyleSheet.create({
   keyGhost: { width: "31.5%", height: 72 },
   keyText: { fontSize: 24, fontWeight: "900", color: "#111827" },
   keySub: { marginTop: 2, fontSize: 10, fontWeight: "900", color: "#6B7280" },
-
   bottom: {
     position: "absolute",
     left: 0,
@@ -1010,8 +997,6 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   saveText: { color: "#FFFFFF", fontSize: 18, fontWeight: "900" },
-
-  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.25)",
@@ -1039,16 +1024,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalCloseText: { fontSize: 26, lineHeight: 26, color: "#111827" },
-
-  modalGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  modalItem: {
-    width: "21.5%",
-    alignItems: "center",
-  },
+  modalGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  modalItem: { width: "21.5%", alignItems: "center" },
   modalIconWrap: {
     width: 56,
     height: 56,

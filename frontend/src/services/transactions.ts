@@ -33,3 +33,15 @@ export async function createTransaction(
 ) {
   return apiPost<Transaction>("/transactions", payload, token);
 }
+
+export type Category = {
+  id: number;
+  name: string;
+  type: "INCOME" | "EXPENSE";
+  icon?: string;
+  userId: number;
+};
+
+export async function getCategories(token: string) {
+  return apiGet<Category[]>("/categories", token);
+}

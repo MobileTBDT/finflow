@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   Image,
   Pressable,
@@ -96,16 +97,26 @@ export default function HomeScreen() {
       const txs = await getTransactions(tokens.accessToken);
       setTransactions(txs);
     } catch (err: any) {
-      showError(err.message || "Failed to load data");
+      showError(err.message || "Failed to load transactions");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
+  // load lần đầu
   useEffect(() => {
     loadData();
   }, []);
+
+  // auto refresh khi screen focus
+  useFocusEffect(
+    useCallback(() => {
+      if (!loading) {
+        loadData();
+      }
+    }, [loading])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

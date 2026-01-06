@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.routes";
 import transactionsRoutes from "./routes/transactions.routes";
+import categoriesRoutes from "./routes/categories.routes";
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 
 app.use("/auth", authRoutes);
 app.use("/transactions", transactionsRoutes);
+app.use("/categories", categoriesRoutes);
 
 app.get("/", (req, res) => {
   res.json({
@@ -28,6 +30,7 @@ app.get("/", (req, res) => {
       login: "POST /auth/login",
       transactions: "GET /transactions (protected)",
       createTransaction: "POST /transactions (protected)",
+      categories: "GET /categories (protected)",
     },
   });
 });
