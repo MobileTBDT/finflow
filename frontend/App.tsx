@@ -9,6 +9,7 @@ import {
 } from "@expo-google-fonts/poppins";
 
 import AppNavigator from "./src/navigation/AppNavigator";
+import Toast from "./src/components/Toast";
 import * as Sentry from "@sentry/react-native";
 import { logEvent } from "./src/services/analytics";
 
@@ -39,7 +40,6 @@ export default Sentry.wrap(function App() {
   });
 
   useEffect(() => {
-    // log vào FA khi mở app
     logEvent("app_open_test", { source: "dev" }).catch(() => {});
   }, []);
 
@@ -54,6 +54,7 @@ export default Sentry.wrap(function App() {
   return (
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <AppNavigator />
+      <Toast />
     </View>
   );
 });

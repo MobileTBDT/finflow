@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
 import { login } from "../services/auth";
 import { saveTokens } from "../services/tokenStorage";
+import { showSuccess, showError } from "../utils/toast";
 
 function BackgroundDecor() {
   return (
@@ -164,11 +165,11 @@ export default function LoginScreen() {
     try {
       const identifier = email.trim();
       if (!identifier) {
-        Alert.alert("Missing email", "Please enter email.");
+        showError("Please enter email.");
         return;
       }
       if (!password) {
-        Alert.alert("Missing password", "Please enter password.");
+        showError("Please enter password.");
         return;
       }
 
@@ -184,9 +185,10 @@ export default function LoginScreen() {
         refreshToken: res.refresh_token,
       });
 
+      showSuccess("Login successful!");
       navigation.replace("MainTabs");
     } catch (e: any) {
-      Alert.alert("Login failed", e?.message ?? "Unknown error");
+      showError(e?.message ?? "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }

@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
 import { register } from "../services/auth";
 import { saveTokens } from "../services/tokenStorage";
+import { showSuccess, showError } from "../utils/toast";
 
 const DEFAULT_AVATAR_URL =
   "https://th.bing.com/th/id/R.d5f0e443064e66c59a54298168b86e3d?rik=4eB9As%2be90MzYQ&pid=ImgRaw&r=0";
@@ -200,14 +201,11 @@ export default function SignUpScreen() {
     try {
       const cleanEmail = email.trim();
       if (!cleanEmail) {
-        Alert.alert("Missing email", "Please enter email.");
+        showError("Please enter email.");
         return;
       }
       if (!password || password.length < 6) {
-        Alert.alert(
-          "Invalid password",
-          "Password must be at least 6 characters."
-        );
+        showError("Password must be at least 6 characters.");
         return;
       }
 
@@ -230,11 +228,10 @@ export default function SignUpScreen() {
         refreshToken: res.refresh_token,
       });
 
-      Alert.alert("Register OK", "Tokens saved.");
-      // TODO: nếu muốn vào app sau khi đăng ký:
-      // navigation.replace("MainTabs");
+      showSuccess("Registration successful!");
+      navigation.replace("MainTabs");
     } catch (e: any) {
-      Alert.alert("Register failed", e?.message ?? "Unknown error");
+      showError(e?.message ?? "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
