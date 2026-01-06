@@ -79,3 +79,32 @@ export async function apiDelete(path: string, token?: string): Promise<void> {
     throw new Error(message);
   }
 }
+
+export async function apiPut<TResponse>(
+  path: string,
+  body: Json,
+  token?: string
+): Promise<TResponse> {
+  const url = `${API_BASE_URL}${path}`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+    const message =
+      data?.message?.toString?.() ||
+      data?.error?.toString?.() ||
+      `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+
+  const text = await res.text();
+  return text ? JSON.parse(text) : ({} as TResponse);
+}
