@@ -1,7 +1,5 @@
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL ||
-  process.env.REACT_APP_BACKEND_URL ||
-  "http://localhost:3000";
+  process.env.EXPO_PUBLIC_BACKEND_URL || "http://127.0.0.1:3000";
 
 type Json = Record<string, any>;
 

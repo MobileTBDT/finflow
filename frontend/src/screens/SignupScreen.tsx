@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +15,63 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
+import { register } from "../services/auth";
+import { saveTokens } from "../services/tokenStorage";
+import { showSuccess, showError } from "../utils/toast";
+
+const DEFAULT_AVATAR_URL =
+  "https://th.bing.com/th/id/R.d5f0e443064e66c59a54298168b86e3d?rik=4eB9As%2be90MzYQ&pid=ImgRaw&r=0";
+
+function randInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randDigits(count: number) {
+  let s = "";
+  for (let i = 0; i < count; i++) s += String(randInt(0, 9));
+  return s;
+}
+
+function makeUsername(opts: {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}) {
+  const emailPart = (opts.email ?? "").trim().split("@")[0] ?? "";
+  const namePart = `${opts.firstName ?? ""}${opts.lastName ?? ""}`.trim();
+
+  const baseRaw = (emailPart || namePart || "user").toLowerCase();
+  const base = baseRaw.replace(/[^a-z0-9]/g, "").slice(0, 14);
+
+  const safeBase = base.length >= 4 ? base : (base + "user").slice(0, 4);
+  const suffix = randDigits(4);
+
+  return `${safeBase}${suffix}`.slice(0, 20);
+}
+
+function makePhone() {
+  return `09${randDigits(8)}`; // 10 digits
+}
+
+function normalizeDob(input: string) {
+  const s = input.trim();
+  if (!s) return undefined;
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // DD/MM/YYYY
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const dd = m[1].padStart(2, "0");
+    const mm = m[2].padStart(2, "0");
+    const yyyy = m[3];
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // fallback: gửi raw, backend sẽ validate
+  return s;
+}
 
 function BackgroundDecor() {
   return (
@@ -131,8 +189,52 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
+  const [loading, setLoading] = useState(false);
+
   const onTabChange = (v: "login" | "signup") => {
     if (v === "login") navigation.replace("Login");
+  };
+
+  const onRegister = async () => {
+    if (loading) return;
+
+    try {
+      const cleanEmail = email.trim();
+      if (!cleanEmail) {
+        showError("Please enter email.");
+        return;
+      }
+      if (!password || password.length < 6) {
+        showError("Password must be at least 6 characters.");
+        return;
+      }
+
+      setLoading(true);
+
+      const payload = {
+        username: makeUsername({ email: cleanEmail, firstName, lastName }),
+        password,
+        fullname: `${firstName} ${lastName}`.trim() || "User",
+        email: cleanEmail,
+        dateofbirth: normalizeDob(dob),
+        phone: makePhone(),
+        image: DEFAULT_AVATAR_URL,
+      };
+
+      const res = await register(payload);
+
+      await saveTokens({
+        accessToken: res.access_token,
+        refreshToken: res.refresh_token,
+      });
+
+      showSuccess("Registration successful!");
+      navigation.replace("MainTabs");
+    } catch (e: any) {
+      showError(e?.message ?? "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -210,10 +312,13 @@ export default function SignUpScreen() {
 
             <TouchableOpacity
               activeOpacity={0.92}
-              style={styles.primaryBtn}
-              onPress={() => {}}
+              style={[styles.primaryBtn, loading && { opacity: 0.6 }]}
+              onPress={onRegister}
+              disabled={loading}
             >
-              <Text style={styles.primaryText}>Register</Text>
+              <Text style={styles.primaryText}>
+                {loading ? "Registering..." : "Register"}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -334,7 +439,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    // borderColor: "rgba(59,130,246,0.55)",
     shadowColor: "#3B82F6",
     shadowOpacity: 0.22,
     shadowRadius: 16,

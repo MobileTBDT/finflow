@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +17,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
+import { login } from "../services/auth";
+import { saveTokens } from "../services/tokenStorage";
+import { showSuccess, showError } from "../utils/toast";
 
 function BackgroundDecor() {
   return (
@@ -149,8 +153,45 @@ export default function LoginScreen() {
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(false);
 
+  const [loading, setLoading] = useState(false);
+
   const onTabChange = (v: "login" | "signup") => {
     if (v === "signup") navigation.replace("SignUp");
+  };
+
+  const onLogin = async () => {
+    if (loading) return;
+
+    try {
+      const identifier = email.trim();
+      if (!identifier) {
+        showError("Please enter email.");
+        return;
+      }
+      if (!password) {
+        showError("Please enter password.");
+        return;
+      }
+
+      setLoading(true);
+
+      const res = await login({
+        username: identifier,
+        password,
+      });
+
+      await saveTokens({
+        accessToken: res.access_token,
+        refreshToken: res.refresh_token,
+      });
+
+      showSuccess("Login successful!");
+      navigation.replace("MainTabs");
+    } catch (e: any) {
+      showError(e?.message ?? "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -219,12 +260,13 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               activeOpacity={0.92}
-              style={styles.primaryBtn}
-              onPress={() => {
-                navigation.navigate("MainTabs");
-              }}
+              style={[styles.primaryBtn, loading && { opacity: 0.6 }]}
+              onPress={onLogin}
+              disabled={loading}
             >
-              <Text style={styles.primaryText}>Log In</Text>
+              <Text style={styles.primaryText}>
+                {loading ? "Logging in..." : "Log In"}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.dividerRow}>

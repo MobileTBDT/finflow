@@ -1,9 +1,13 @@
-import { Injectable, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { CategoriesService } from '../categories/categories.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { ConfigService } from '@nestjs/config'; // Import ConfigService
+import { ConfigService } from '@nestjs/config';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 
 @Injectable()
@@ -12,7 +16,7 @@ export class AuthService {
     private usersService: UsersService,
     private categoriesService: CategoriesService,
     private jwtService: JwtService,
-    private configService: ConfigService, 
+    private configService: ConfigService,
   ) {}
 
   async register(createUserDto: CreateUserDto) {
@@ -20,26 +24,38 @@ export class AuthService {
     const tokens = await this.getTokens(newUser.id, newUser.username);
     await this.updateRtHash(newUser.id, tokens.refresh_token);
     await this.categoriesService.addCategoryDefaultForUser(newUser);
-    return { 
+    return {
       ...tokens,
-      info: newUser
+      info: newUser,
     };
   }
 
   async login(loginDto: any) {
-    const user = await this.usersService.FindByUsername(loginDto.username);
-    if (!user) throw new UnauthorizedException('Tên đăng nhập không tồn tại!!!');
+    const identifier = loginDto.username?.trim();
+    if (!identifier) {
+      throw new UnauthorizedException('Username/Email/Phone is required');
+    }
+
+    // tìm user theo username OR email OR phone
+    const user =
+      await this.usersService.findByUsernameOrEmailOrPhone(identifier);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     const isMatch = await bcrypt.compare(loginDto.password, user.password);
-    if (!isMatch) throw new UnauthorizedException('Mật khẩu không đúng!!!');
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     const tokens = await this.getTokens(user.id, user.username);
-    
+
     await this.updateRtHash(user.id, tokens.refresh_token);
     const { password, ...result } = user;
     return {
       ...tokens,
-      info: result 
+      info: result,
     };
   }
 
@@ -50,7 +66,8 @@ export class AuthService {
   async refreshTokens(userId: number, rt: string) {
     const user = await this.usersService.findOne(userId);
 
-    if (!user || !user.refreshToken) throw new ForbiddenException('Access Denied');
+    if (!user || !user.refreshToken)
+      throw new ForbiddenException('Access Denied');
 
     const rtMatches = await bcrypt.compare(rt, user.refreshToken);
 
@@ -58,7 +75,7 @@ export class AuthService {
     const tokens = await this.getTokens(user.id, user.username);
 
     await this.updateRtHash(user.id, tokens.refresh_token);
-    
+
     return tokens;
   }
 
@@ -68,7 +85,7 @@ export class AuthService {
   }
 
   async getTokens(userId: number, username: string) {
-    const payload = { sub: userId, username: username};
+    const payload = { sub: userId, username: username };
 
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(payload, {
