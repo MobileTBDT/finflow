@@ -10,7 +10,7 @@
 | **Backend API**     |   ✅    | [Backend URL](https://finflow-api-d427.onrender.com)                           ` |
 | **API Docs**        |   ✅    | [Swagger](https://finflow-api-d427.onrender.com/api-docs/)   |
 | **Báo cáo (PDF)**   |   ❌    | `[TODO: Link file PDF trong folder docs]`                    |
-| **Survey**          |   ✅    | [Edit](https://docs.google.com/forms/d/1aQS8M_hS7iIu4B5asvc_S1Eoy8kqfuKpDxmKnN21h8Q/edit)  [Survey](https://docs.google.com/forms/d/e/1FAIpQLScbDNi2CtIj17xVRlGXDGiN8FVsrKnTmwWzyFo08lxo-TuguQ/viewform?usp=sharing&ouid=109233980361554553650)               |
+| **Survey**          |   ✅    | [Edit](https://docs.google.com/forms/d/1aQS8M_hS7iIu4B5asvc_S1Eoy8kqfuKpDxmKnN21h8Q/edit) & [Survey](https://docs.google.com/forms/d/e/1FAIpQLScbDNi2CtIj17xVRlGXDGiN8FVsrKnTmwWzyFo08lxo-TuguQ/viewform?usp=sharing&ouid=109233980361554553650)               |
 | **Poster**          |   ✅    | [Poster](https://drive.google.com/file/d/1IB3YFuB_syYhoSvNY_nXzXbw8iocyrXr/view?usp=sharing)                 |
 
 ## 2. TODO List
