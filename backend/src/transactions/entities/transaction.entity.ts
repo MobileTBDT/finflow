@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
 import { Category } from '../../categories/entities/category.entity';
 import { User } from '../../users/entities/user.entity'; // Giả sử bạn đã có User entity
 
@@ -13,10 +13,13 @@ export class Transaction {
   amount: number;
 
   @Column({ type: 'date' })
-  date: Date;
+  date: string;
 
   @Column({ nullable: true })
   note: string;  
+
+  @CreateDateColumn({ name: 'created_at' }) // Thêm trường này
+  createdAt: Date;
 
   @ManyToOne(() => Category, (category) => category.transactions)
   @JoinColumn({ name: 'category_id' })

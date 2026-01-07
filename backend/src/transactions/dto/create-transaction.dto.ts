@@ -10,7 +10,7 @@ export class CreateTransactionDto {
   @IsNotEmpty({ message: 'Ngày giao dịch không được để trống' })
   @Type(() => Date) // Chuyển đổi chuỗi JSON (vd: "2023-12-20") thành Date object
   @IsDate({ message: 'Định dạng ngày tháng không hợp lệ' })
-  date: Date;
+  date: string;
 
   @IsOptional()
   @IsString({ message: 'Ghi chú phải là dạng chuỗi' })

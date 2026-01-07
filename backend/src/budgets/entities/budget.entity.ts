@@ -18,8 +18,8 @@ export class Budget {
     })
     amount: number;
 
-    @Column('date')
-    period: Date;
+    @Column()
+    period: string;
 
     @ManyToOne(() => Category, (category) => category.budgets)
     @JoinColumn({ name: 'category_id' })

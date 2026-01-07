@@ -1,4 +1,4 @@
-export const API_BASE_URL =
+export const API_BASE_URL = 
   process.env.EXPO_PUBLIC_BACKEND_URL || "http://127.0.0.1:3000";
 
 type Json = Record<string, any>;

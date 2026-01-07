@@ -8,9 +8,7 @@ export class CreateBudgetDto {
   amount: number;
 
   @IsNotEmpty({ message: 'Thời gian (kỳ hạn) không được để trống' })
-  @Type(() => Date) // Tự động chuyển chuỗi (vd: "2023-10-01") thành object Date
-  @IsDate({ message: 'Định dạng ngày tháng không hợp lệ' })
-  period: Date;
+  period: string;
 
   @IsNotEmpty({ message: 'Phải chọn danh mục (Category)' })
   @IsNumber({}, { message: 'Category ID phải là một số' })

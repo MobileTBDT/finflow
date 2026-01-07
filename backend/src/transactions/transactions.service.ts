@@ -31,8 +31,13 @@ export class TransactionsService {
   // --- 2. LẤY TRANSACTION THEO LOẠI (INCOME/EXPENSE) TRONG THÁNG HIỆN TẠI ---
   async findAllByTypeCurrentMonth(userId: number, type: 'INCOME' | 'EXPENSE') {
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1); 
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0'); // Trả về "01", "02", ...
+    
+    const startOfMonth = `${year}-${month}-01`;
+    
+    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+    const endOfMonth = `${year}-${month}-${lastDay}`;
 
     return await this.transactionRepository.find({
       where: {
@@ -48,44 +53,40 @@ export class TransactionsService {
   // --- 3. BÁO CÁO CHI TIÊU (EXPENSE) TỪNG NGÀY TRONG TUẦN HIỆN TẠI ---
   async getWeeklyExpenseDaily(userId: number) {
     const now = new Date();
-    
     const dayOfWeek = now.getDay(); 
     const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
     
-    const startOfWeek = new Date(now.setDate(diff));
-    startOfWeek.setHours(0, 0, 0, 0);
+    const monday = new Date(now.setDate(diff));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
 
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
-    // Lấy tất cả expense trong tuần
+    const startStr = formatDate(monday);
+    const endStr = formatDate(sunday);
+
     const transactions = await this.transactionRepository.find({
       where: {
         user: { id: userId },
         category: { type: TransactionType.EXPENSE },
-        date: Between(startOfWeek, endOfWeek)
+        date: Between(startStr, endStr)
       }
     });
 
-    const result: { date: string; dayName: string; total: number }[] = []
-    for (let i = 0; i < 7; i++) {
-      const currentDay = new Date(startOfWeek);
-      currentDay.setDate(startOfWeek.getDate() + i);
-      const dateString = currentDay.toISOString().split('T')[0]; // YYYY-MM-DD
+    const result: { date: string; dayName: string; total: number }[] = [];
 
-      // Tính tổng tiền của ngày đó
+    for (let i = 0; i < 7; i++) {
+      const currentDay = new Date(monday);
+      currentDay.setDate(monday.getDate() + i);
+      const dateString = formatDate(currentDay);
+
       const totalAmount = transactions
-        .filter(t => {
-            // So sánh ngày (do transaction.date có thể là Date object hoặc string tùy config DB)
-            const tDate = new Date(t.date).toISOString().split('T')[0];
-            return tDate === dateString;
-        })
+        .filter(t => t.date === dateString)
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       result.push({
         date: dateString,
-        dayName: this.getDayName(i), // Hàm phụ lấy tên thứ
+        dayName: this.getDayName(i),
         total: totalAmount
       });
     }
@@ -95,40 +96,40 @@ export class TransactionsService {
 
   // --- 4. BÁO CÁO CHI TIÊU (EXPENSE) THEO CATEGORY TRONG THÁNG ---
   async getMonthlyExpenseByCategory(userId: number) {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  
+  const startStr = `${year}-${month}-01`;
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+  const endStr = `${year}-${month}-${lastDay}`;
 
-    // Lấy danh sách expense tháng này kèm thông tin category
-    const transactions = await this.transactionRepository.find({
-      where: {
-        user: { id: userId },
-        category: { type: TransactionType.EXPENSE },
-        date: Between(startOfMonth, endOfMonth)
-      },
-      relations: ['category']
-    });
+  const transactions = await this.transactionRepository.find({
+    where: {
+      user: { id: userId },
+      category: { type: TransactionType.EXPENSE },
+      date: Between(startStr, endStr)
+    },
+    relations: ['category']
+  });
 
-    // Gom nhóm tính tổng theo từng Category
-    const categoryMap = new Map<number, any>();
+  const categoryMap = new Map<number, any>();
 
-    transactions.forEach(t => {
-      const catId = t.category.id;
-      if (!categoryMap.has(catId)) {
-        categoryMap.set(catId, {
-          categoryId: catId,
-          categoryName: t.category.name, // Giả sử category có name
-          // categoryIcon: t.category.image, // Nếu có
-          totalAmount: 0
-        });
-      }
-      const current = categoryMap.get(catId);
-      current.totalAmount += Number(t.amount);
-    });
+  transactions.forEach(t => {
+    const catId = t.category.id;
+    if (!categoryMap.has(catId)) {
+      categoryMap.set(catId, {
+        categoryId: catId,
+        categoryName: t.category.name,
+        categoryIcon: t.category.icon,
+        totalAmount: 0
+      });
+    }
+    categoryMap.get(catId).totalAmount += Number(t.amount);
+  });
 
-    // Chuyển Map thành Array để trả về Client
-    return Array.from(categoryMap.values()).sort((a, b) => b.totalAmount - a.totalAmount);
-  }
+  return Array.from(categoryMap.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+}
 
   // --- 5. CẬP NHẬT TRANSACTION ---
   async update(id: number, updateTransactionDto: UpdateTransactionDto, userId: number) {
@@ -163,6 +164,32 @@ export class TransactionsService {
     }
     return transaction;
   }
+
+  async findAll(userId: number) {
+    const transactions = await this.transactionRepository.find({
+      where: { user: { id: userId } },
+      relations: ['category', 'user'],
+      order: { date: 'DESC' },
+      take: 100, // Giới hạn 100 bản ghi theo yêu cầu
+    });
+    return transactions.map(t => ({
+      id: t.id,
+      amount: Number(t.amount),
+      date: t.date,
+      note: t.note,
+      userId: userId, // Lấy ID trực tiêps
+      categoryId: t.category ? t.category.id : null,
+      category: t.category ? {
+        id: t.category.id,
+        name: t.category.name,
+        type: t.category.type,
+        icon: t.category.icon,
+        userId: userId
+      } : null,
+      createdAt: t.createdAt
+    }));
+  }
+
 
   // Helper: Lấy tên thứ
   private getDayName(index: number): string {
