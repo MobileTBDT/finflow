@@ -1,51 +1,36 @@
-name: Deploy FinFlow Backend
+name: CI/CD FinFlow Backend
 
 on:
   push:
     branches: [ main ]
     paths:
-      - '.backend/**'
+      - 'backend/**' # Chỉ chạy khi có thay đổi trong thư mục backend
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
-      - name: Build backend
+      - name: Install dependencies
         working-directory: backend
-        run: |
-          npm ci
-          npm run build
+        run: npm install
 
-      - name: Load server secrets
-        id: load
-        run: |
-          echo "${{ secrets.CLOUDFLY_TOKEN }}" > secrets.txt
-          echo "SSH_HOST=$(grep SSH_HOST secrets.txt | cut -d '=' -f2)" >> $GITHUB_ENV
-          echo "SSH_PORT=$(grep SSH_PORT secrets.txt | cut -d '=' -f2)" >> $GITHUB_ENV
-          echo "SSH_USERNAME=$(grep SSH_USERNAME secrets.txt | cut -d '=' -f2)" >> $GITHUB_ENV
-          echo "SSH_PASSWORD=$(grep SSH_PASSWORD secrets.txt | cut -d '=' -f2)" >> $GITHUB_ENV
-          echo "ENV_FILE=$(grep ENV_FILE secrets.txt | cut -d '=' -f2-)" >> $GITHUB_ENV
+      - name: Build project
+        working-directory: backend
+        run: npm run build
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ env.SSH_HOST }}
-          username: ${{ env.SSH_USERNAME }}
-          password: ${{ env.SSH_PASSWORD }}
-          port: ${{ env.SSH_PORT }}
-          script: |
-            cd /var/www/finflow-backend || mkdir -p /var/www/finflow-backend && cd /var/www/finflow-backend
-            git pull || git clone https://github.com/MobileTBDT/finflow.git .
-            cd backend
-            npm ci
-            npm run build
-            echo "${{ env.ENV_FILE }}" > .env
-            pm2 restart finflow-backend || pm2 start dist/main.js --name finflow-backend
+
+      - name: Trigger Render Deploy
+        # Nếu build thành công, gửi lệnh gọi Deploy Hook tới Render
+        run: |
+          curl -f ${{ secrets.RENDER_DEPLOY_HOOK }}
