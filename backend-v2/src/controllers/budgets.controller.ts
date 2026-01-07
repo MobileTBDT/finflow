@@ -2,7 +2,7 @@ import { Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { AuthRequest } from "../middleware/auth.middleware";
 
-const prisma = new PrismaClient();
+import prisma from "../client";
 
 // GET /budgets?month=2026-01
 export async function getBudgets(req: AuthRequest, res: Response) {

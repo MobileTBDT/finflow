@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { AuthRequest } from "../middleware/auth.middleware";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+import prisma from "../client";
 
 // GET /users/me
 export async function getProfile(req: AuthRequest, res: Response) {

@@ -2,7 +2,7 @@ import { Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { AuthRequest } from "../middleware/auth.middleware";
 
-const prisma = new PrismaClient();
+import prisma from "../client";
 
 export async function getCategories(req: AuthRequest, res: Response) {
   try {
