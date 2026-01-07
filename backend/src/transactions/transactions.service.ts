@@ -166,10 +166,28 @@ export class TransactionsService {
   }
 
   async findAll(userId: number) {
-    return await this.transactionRepository.find({
+    const transactions = await this.transactionRepository.find({
       where: { user: { id: userId } },
-      relations: ['category']
+      relations: ['category', 'user'],
+      order: { date: 'DESC' },
+      take: 100, // Giới hạn 100 bản ghi theo yêu cầu
     });
+    return transactions.map(t => ({
+      id: t.id,
+      amount: Number(t.amount),
+      date: t.date,
+      note: t.note,
+      userId: userId, // Lấy ID trực tiêps
+      categoryId: t.category ? t.category.id : null,
+      category: t.category ? {
+        id: t.category.id,
+        name: t.category.name,
+        type: t.category.type,
+        icon: t.category.icon,
+        userId: userId
+      } : null,
+      createdAt: t.createdAt
+    }));
   }
 
 
