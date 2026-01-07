@@ -1,7 +1,8 @@
 import { 
   Controller, 
   Get, 
-  Post, 
+  Post,
+  Put, 
   Body, 
   Patch, 
   Param, 
@@ -23,7 +24,7 @@ export class UsersController {
   // CÁC API CẦN ĐĂNG NHẬP (Sử dụng AtGuard)
   // =================================================================
   @UseGuards(AtGuard)
-  @Get('profile')
+  @Get('me')
   getProfile(@Request() req) {
     const userId = req.user['sub']; 
     return this.usersService.findOne(userId);
@@ -31,7 +32,7 @@ export class UsersController {
 
   // 3. Cập nhật Profile của CHÍNH MÌNH
   @UseGuards(AtGuard)
-  @Patch('profile')
+  @Put('me')
   updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
     const userId = req.user['sub'];
     return this.usersService.update(userId, updateUserDto);

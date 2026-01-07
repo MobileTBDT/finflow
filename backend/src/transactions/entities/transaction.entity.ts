@@ -13,7 +13,7 @@ export class Transaction {
   amount: number;
 
   @Column({ type: 'date' })
-  date: Date;
+  date: string;
 
   @Column({ nullable: true })
   note: string;  

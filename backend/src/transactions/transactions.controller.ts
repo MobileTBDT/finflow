@@ -20,8 +20,13 @@ export class TransactionsController {
     return this.transactionsService.create(createDto, { id: userId } as User);
   }
 
+  @Get() 
+  findAll(@Request() req) {
+    const userId = req.user['sub'];
+    return this.transactionsService.findAll(userId); 
+  }
+
   // 2. Lấy danh sách giao dịch trong tháng này theo loại
-  // URL: GET /transactions/current-month?type=INCOME
   @Get('current-month')
   findByTypeCurrentMonth(
     @Request() req, 
@@ -32,7 +37,6 @@ export class TransactionsController {
   }
 
   // 3. Báo cáo Chi tiêu (Expense) theo từng ngày trong tuần
-  // URL: GET /transactions/weekly-report
   @Get('weekly-report')
   getWeeklyReport(@Request() req) {
     const userId = req.user['sub'];
@@ -40,7 +44,6 @@ export class TransactionsController {
   }
 
   // 4. Báo cáo Chi tiêu (Expense) theo Category trong tháng
-  // URL: GET /transactions/monthly-category-report
   @Get('monthly-category-report')
   getMonthlyCategoryReport(@Request() req) {
     const userId = req.user['sub'];
