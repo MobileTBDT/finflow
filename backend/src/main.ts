@@ -6,11 +6,13 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Kích hoạt Validation toàn cục
+  app.enableCors(); 
+
+  await app.listen(process.env.PORT || 3000, '0.0.0.0');
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true, // Tự động loại bỏ các field không khai báo trong DTO
-    forbidNonWhitelisted: true, // Báo lỗi nếu client gửi thừa field rác
-    transform: true, // Tự động chuyển đổi type (vd: string -> number, string -> Date)
+    whitelist: true, 
+    forbidNonWhitelisted: true, 
+    transform: true, 
   }));
 
   await app.listen(3000);

@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # Dịch vụ Database
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: finflowdb2026_user
+      POSTGRES_PASSWORD: YfTRsr8DPND8mRO3kaevD9eN3Oxo4apj
+      POSTGRES_DB: finflowdb2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Giúp dữ liệu không bị mất khi restart
+
+  # Dịch vụ NestJS App (Backend)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nestjs_api
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      # Lưu ý: Host ở đây là "db" (tên của service database ở trên)
+      DATABASE_URL: postgresql://finflowdb2026_user:YfTRsr8DPND8mRO3kaevD9eN3Oxo4apj@dpg-d5fainn5r7bs73c5eh40-a.singapore-postgres.render.com/finflowdb2026
+      JWT_REFRESH_SECRET: REFRESH_TOKEN_TUNG_2004
+      JWT_SECRET: ACCESS_TOKEN_TUNG_2004
+
+volumes:
+  postgres_data:
