@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { ActivityIndicator, View } from "react-native";
-
+import { ActivityIndicator, View, Text } from "react-native";
+// npx expo start --go --clear
 import OnboardingScreen from "../screens/OnboardingScreen";
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignupScreen";
@@ -13,8 +13,6 @@ import type { RootStackParamList } from "./types";
 import BudgetCategoryDetailScreen from "../screens/BudgetCategoryDetailScreen";
 import BudgetCategoryFormScreen from "../screens/BudgetCategoryFormScreen";
 
-import EditProfileScreen from "../screens/EditProfileScreen";
-
 import { getTokens } from "../services/tokenStorage";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -23,25 +21,59 @@ export default function AppNavigator() {
   const [initialRoute, setInitialRoute] = useState<
     "Onboarding" | "MainTabs" | null
   >(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // check nếu đã có token → vào MainTabs, nếu không → Onboarding
-    getTokens()
-      .then((tokens) => {
+    const checkAuth = async () => {
+      try {
+        console.log("[AppNavigator] Checking token...");
+
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout")), 3000)
+        );
+
+        const tokens = await Promise.race([getTokens(), timeoutPromise]);
+
+        console.log("[AppNavigator] Token result:", tokens);
+
         if (tokens?.accessToken) {
           setInitialRoute("MainTabs");
         } else {
           setInitialRoute("Onboarding");
         }
-      })
-      .catch(() => setInitialRoute("Onboarding"));
+      } catch (err: any) {
+        console.error("[AppNavigator] Error checking token:", err);
+        setError(err.message);
+        setInitialRoute("Onboarding");
+      }
+    };
+
+    checkAuth();
   }, []);
 
+  if (error) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}
+      >
+        <Text style={{ color: "red", fontSize: 16, textAlign: "center" }}>
+          Init Error: {error}
+        </Text>
+        <Text style={{ color: "#666", marginTop: 10 }}>Check console logs</Text>
+      </View>
+    );
+  }
+
   if (!initialRoute) {
-    // Đang check token
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator size="large" color="#111827" />
+        <Text style={{ marginTop: 10, color: "#666" }}>Loading...</Text>
       </View>
     );
   }
@@ -83,7 +115,6 @@ export default function AppNavigator() {
           name="BudgetCategoryForm"
           component={BudgetCategoryFormScreen}
         />
-        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
