@@ -279,8 +279,8 @@ export default function ProfileScreen() {
               stat.iconFamily === "Ionicons"
                 ? Ionicons
                 : stat.iconFamily === "FontAwesome5"
-                ? FontAwesome5
-                : MaterialIcons;
+                  ? FontAwesome5
+                  : MaterialIcons;
 
             return (
               <View key={idx} style={styles.statCard}>
@@ -396,7 +396,7 @@ const CARD_SHADOW = Platform.select({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F3F4F6" },
-  content: { paddingHorizontal: 18, paddingBottom: 22 },
+  content: { paddingHorizontal: 18, paddingBottom: 100 },
 
   header: {
     marginTop: 6,

@@ -14,6 +14,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
+import Svg, { G, Circle } from "react-native-svg";
+
+const CHART_COLORS = [
+  "#FB923C", // Orange
+  "#06B6D4", // Cyan
+  "#F43F5E", // Rose
+  "#8B5CF6", // Violet
+  "#10B981", // Emerald
+  "#A16207", // Yellow
+  "#3B82F6", // Blue
+  "#EF4444", // Red
+];
 
 import { getTransactions, Transaction } from "../services/transactions";
 import { getTokens } from "../services/tokenStorage";
@@ -164,9 +176,27 @@ export default function HomeScreen() {
       categoryMap.set(key, existing);
     });
 
-  const topCategories = Array.from(categoryMap.values())
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 3);
+
+
+  const allCategories = Array.from(categoryMap.values()).sort(
+    (a, b) => b.total - a.total
+  );
+
+  const topCategories = allCategories.slice(0, 3);
+
+  // Prepare Chart Data
+  let accumulatedPercent = 0;
+  const chartData = allCategories.map((cat, index) => {
+    const percentage = totalExpense > 0 ? cat.total / totalExpense : 0;
+    const item = {
+      ...cat,
+      color: CHART_COLORS[index % CHART_COLORS.length],
+      percentage,
+      startPercent: accumulatedPercent,
+    };
+    accumulatedPercent += percentage;
+    return item;
+  });
 
   // Placeholder images (giữ nguyên hardcoded images)
   const categoryImages: Record<string, any> = {
@@ -228,11 +258,58 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Chart card (placeholder - giữ nguyên) */}
+        {/* Chart card */}
         <View style={styles.chartCard}>
           <View style={styles.chartLeft}>
-            <View style={styles.donutOuter}>
-              <View style={styles.donutInner}>
+            <View
+              style={{
+                width: 140,
+                height: 140,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Svg height="140" width="140" viewBox="0 0 140 140">
+                <G rotation="-90" origin="70, 70">
+                  {totalExpense === 0 && (
+                    <Circle
+                      cx="70"
+                      cy="70"
+                      r="60"
+                      stroke="#E5E7EB"
+                      strokeWidth="18"
+                      fill="transparent"
+                    />
+                  )}
+                  {chartData.map((item) => {
+                    const circumference = 2 * Math.PI * 60;
+                    const strokeDasharray = `${item.percentage * circumference
+                      } ${circumference}`;
+                    const strokeDashoffset =
+                      -item.startPercent * circumference;
+
+                    return (
+                      <Circle
+                        key={item.name}
+                        cx="70"
+                        cy="70"
+                        r="60"
+                        stroke={item.color}
+                        strokeWidth="18"
+                        fill="transparent"
+                        strokeDasharray={strokeDasharray}
+                        strokeDashoffset={strokeDashoffset}
+                      />
+                    );
+                  })}
+                </G>
+              </Svg>
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { alignItems: "center", justifyContent: "center" },
+                ]}
+              >
                 <Text style={styles.donutValue}>{money(totalExpense)}</Text>
               </View>
             </View>
@@ -246,17 +323,12 @@ export default function HomeScreen() {
               })}
             </Text>
 
-            {[
-              { label: "Food", color: "#FB923C" },
-              { label: "Groceries", color: "#06B6D4" },
-              { label: "Transportation", color: "#F43F5E" },
-              { label: "Entertainment", color: "#8B5CF6" },
-              { label: "Health care", color: "#10B981" },
-              { label: "Saving", color: "#A16207" },
-            ].map((it) => (
-              <View key={it.label} style={styles.legendRow}>
+            {chartData.map((it) => (
+              <View key={it.name} style={styles.legendRow}>
                 <View style={[styles.dot, { backgroundColor: it.color }]} />
-                <Text style={styles.legendText}>{it.label}</Text>
+                <Text style={styles.legendText} numberOfLines={1}>
+                  {it.name}
+                </Text>
               </View>
             ))}
           </View>

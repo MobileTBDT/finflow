@@ -12,6 +12,7 @@ import type { RootStackParamList } from "./types";
 
 import BudgetCategoryDetailScreen from "../screens/BudgetCategoryDetailScreen";
 import BudgetCategoryFormScreen from "../screens/BudgetCategoryFormScreen";
+import EditProfileScreen from "../screens/EditProfileScreen";
 
 import { getTokens } from "../services/tokenStorage";
 
@@ -115,6 +116,7 @@ export default function AppNavigator() {
           name="BudgetCategoryForm"
           component={BudgetCategoryFormScreen}
         />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
